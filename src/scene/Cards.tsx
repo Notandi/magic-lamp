@@ -6,6 +6,10 @@ import type { LampSession, WishCards } from '../session/lampSession';
 import cardBackUrl from '../assets/cards/card-back.jpg';
 import { CARD_SIZE, fanArc, type FanSlot } from './cardLayout';
 import type { SmokeDissolve } from './Smoke';
+import { useCardPlay } from './useCardPlay';
+
+/** Name of the group holding the Cards, so pointer input can tell a press on a Card from one on the Lamp. */
+export const CARDS_OBJECT_NAME = 'cards';
 
 /** Timing of the Cards' animations, in seconds. */
 export const CARD_ANIMATION = {
@@ -53,6 +57,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
  * A Wish's Cards. They rise out of the Smoke column one after another, spinning, and settle
  * into a fan-shaped arc above the Lamp; then they report Cards-settled to the Lamp session.
  * When the session clears them, they dissolve into Smoke. Each Wish replaces the last.
+ * Once settled, the player can hover, flip and Inspect them (see useCardPlay).
  */
 export function Cards({
   session,
@@ -97,10 +102,11 @@ export function Cards({
 
   if (!shown) return null;
   return (
-    <group>
+    <group name={CARDS_OBJECT_NAME}>
       {shown.faces.map((faces, i) => (
         <CardSlab
           key={`${shown.id}-${i}`}
+          session={session}
           index={i}
           faces={faces}
           slot={slots[i]}
@@ -147,6 +153,7 @@ const cardGeometry = (() => {
 const edgeMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1612, roughness: 0.7, transparent: true });
 
 function CardSlab({
+  session,
   index,
   faces,
   slot,
@@ -154,6 +161,7 @@ function CardSlab({
   clock,
   dissolve,
 }: {
+  session: LampSession;
   index: number;
   faces: CardFaces;
   slot: FanSlot;
@@ -181,10 +189,12 @@ function CardSlab({
     [materials],
   );
 
+  const play = useCardPlay({ session, index, card: group, faces: [materials.front, materials.back] });
+
   const start = useMemo(() => new THREE.Vector3(origin[0], origin[1] + CARD_ANIMATION.columnHeight, origin[2]), [origin]);
   const end = useMemo(() => new THREE.Vector3(...slot.position), [slot]);
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera }, delta) => {
     const g = group.current;
     const c = clock.current;
     if (!g || !c) return;
@@ -204,6 +214,7 @@ function CardSlab({
     const scale = (0.15 + 0.85 * e) * (0.4 + 0.6 * fade);
     g.scale.setScalar(scale);
     g.visible = k > 0 && fade > 0;
+    play.pose(camera, Math.min(delta, 0.1), c.stage === 'settled');
 
     for (const m of [materials.front, materials.back, materials.edge]) m.opacity = fade * Math.min(1, k * 4);
 
@@ -213,10 +224,12 @@ function CardSlab({
   });
 
   return (
-    <group ref={group} visible={false}>
-      <mesh geometry={cardGeometry.body} material={materials.edge} castShadow />
-      <mesh geometry={cardGeometry.face} material={materials.front} position-z={cardGeometry.faceOffset} />
-      <mesh geometry={cardGeometry.face} material={materials.back} position-z={-cardGeometry.faceOffset} rotation-y={Math.PI} />
+    <group ref={group} visible={false} {...play.handlers}>
+      <group ref={play.flipper}>
+        <mesh geometry={cardGeometry.body} material={materials.edge} castShadow />
+        <mesh geometry={cardGeometry.face} material={materials.front} position-z={cardGeometry.faceOffset} />
+        <mesh geometry={cardGeometry.face} material={materials.back} position-z={-cardGeometry.faceOffset} rotation-y={Math.PI} />
+      </group>
     </group>
   );
 }

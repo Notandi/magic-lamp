@@ -2,6 +2,7 @@ import { useEffect, type RefObject } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { LampPointer, LampSession } from '../session/lampSession';
+import { CARDS_OBJECT_NAME } from './Cards';
 
 /**
  * Feeds the browser's pointer events into the Lamp session, raycasting each one
@@ -10,11 +11,16 @@ import type { LampPointer, LampSession } from '../session/lampSession';
 export function useLampRubInput(lamp: RefObject<THREE.Object3D | null>, session: LampSession) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
 
   useEffect(() => {
     const canvas = gl.domElement;
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
+
+    /** Distance along the pointer ray to the first hit on `object`, or Infinity. */
+    const hitDistance = (object: THREE.Object3D | null | undefined) =>
+      (object && raycaster.intersectObject(object, true)[0]?.distance) ?? Infinity;
 
     const toLampPointer = (e: PointerEvent): LampPointer => {
       const rect = canvas.getBoundingClientRect();
@@ -22,12 +28,16 @@ export function useLampRubInput(lamp: RefObject<THREE.Object3D | null>, session:
       const y = e.clientY - rect.top;
       ndc.set((x / rect.width) * 2 - 1, -(y / rect.height) * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
-      const overLamp = !!lamp.current && raycaster.intersectObject(lamp.current, true).length > 0;
-      return { x, y, overLamp };
+      return { x, y, overLamp: hitDistance(lamp.current) < Infinity };
     };
 
     const onDown = (e: PointerEvent) => {
-      if (e.button === 0) session.pointerDown(toLampPointer(e));
+      if (e.button !== 0) return;
+      const pointer = toLampPointer(e);
+      // A press on a Card in front of the Lamp is for the Card (flip or Inspect), not a Rub,
+      // so dragging it across the Lamp doesn't dissolve the Cards.
+      if (hitDistance(scene.getObjectByName(CARDS_OBJECT_NAME)) < hitDistance(lamp.current)) return;
+      session.pointerDown(pointer);
     };
     const onMove = (e: PointerEvent) => session.pointerMove(toLampPointer(e));
     const onUp = () => session.pointerUp();
@@ -44,5 +54,5 @@ export function useLampRubInput(lamp: RefObject<THREE.Object3D | null>, session:
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('blur', onUp);
     };
-  }, [gl, camera, lamp, session]);
+  }, [gl, camera, scene, lamp, session]);
 }

@@ -370,3 +370,61 @@ describe('Lamp session: Cards that are not ready when Charge fills', () => {
     expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
   });
 });
+
+describe('Lamp session: Inspecting a Card', () => {
+  /** A session showing a settled Wish of five Cards. */
+  async function showingCards() {
+    const session = createLampSession();
+    pressOnLamp(session);
+    await flush();
+    rubUntilWish(session);
+    session.cardsSettled();
+    session.pointerUp();
+    expect(session.state.phase).toBe('showing');
+    return session;
+  }
+
+  it('clicking a Card while showing Inspects that Card', async () => {
+    const session = await showingCards();
+    session.cardClicked(2);
+    expect(session.state).toMatchObject({ phase: 'inspecting', inspectedCard: 2 });
+  });
+
+  it('a background click while Inspecting sends the Card back', async () => {
+    const session = await showingCards();
+    session.cardClicked(2);
+    session.backgroundClicked();
+    expect(session.state).toMatchObject({ phase: 'showing', inspectedCard: null });
+    expect(session.state.cards).toMatchObject({ kind: 'face-down', count: 5 });
+  });
+
+  it('clicking any Card while Inspecting sends the Inspected Card back, not Inspecting another', async () => {
+    const session = await showingCards();
+    session.cardClicked(2);
+    session.cardClicked(4);
+    expect(session.state).toMatchObject({ phase: 'showing', inspectedCard: null });
+
+    session.cardClicked(4);
+    session.cardClicked(4);
+    expect(session.state).toMatchObject({ phase: 'showing', inspectedCard: null });
+  });
+
+  it('clicking a Card while the Cards are still rising does not Inspect it', async () => {
+    const session = createLampSession();
+    pressOnLamp(session);
+    await flush();
+    rubUntilWish(session);
+    session.cardClicked(1);
+    expect(session.state).toMatchObject({ phase: 'wishing', inspectedCard: null });
+  });
+
+  it('Rubbing is paused while Inspecting: Rub strokes add no Charge and keep the Cards', async () => {
+    const session = await showingCards();
+    const cards = session.state.cards;
+    session.cardClicked(3);
+    pressOnLamp(session);
+    rub(session, 12);
+    expect(session.state).toMatchObject({ phase: 'inspecting', inspectedCard: 3, charge: 0, isRubbing: false });
+    expect(session.state.cards).toBe(cards);
+  });
+});
