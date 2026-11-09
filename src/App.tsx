@@ -10,7 +10,7 @@ import { Lighting } from './scene/Lighting';
 import { SPOUT_TIP } from './scene/lampGeometry';
 import { LAMP_POSITION } from './scene/Lamp';
 import { PostFx } from './scene/PostFx';
-import { Smoke } from './scene/Smoke';
+import { Wish } from './scene/Wish';
 import { createLampSession } from './session/lampSession';
 
 const SPOUT_TIP_WORLD = SPOUT_TIP.clone().add(LAMP_POSITION).toArray();
@@ -29,7 +29,7 @@ export function App() {
       <CameraRig />
       <Lighting />
       <Lamp session={session} />
-      <Smoke session={session} origin={SPOUT_TIP_WORLD} />
+      <Wish session={session} origin={SPOUT_TIP_WORLD} />
       <Suspense fallback={null}>
         <Hand />
       </Suspense>

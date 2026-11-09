@@ -32,6 +32,20 @@ export const SMOKE_TUNING = {
   puffLifetime: 2.6,
   /** Upward speed (world units/second) of a fresh puff. */
   riseSpeed: 0.55,
+  /** Swirl column (during a Wish): puffs per second at full swirl. */
+  swirlEmissionRate: 140,
+  /** Swirl column radius (world units) puffs are pulled towards. */
+  swirlRadius: 0.22,
+  /** Swirl column angular speed (radians/second). */
+  swirlSpin: 5,
+  /** Swirl column upward speed (world units/second). */
+  swirlRise: 1.3,
+  /** How quickly (1/seconds) puffs are steered into the column. */
+  swirlGrip: 4,
+  /** Puff size in the swirl column. */
+  swirlSize: 0.45,
+  /** Puff size of a dissolve burst. */
+  burstSize: 0.35,
 } as const;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -87,8 +101,13 @@ export interface SmokePool {
   /** All puff slots; only those with `alive` set are drawn. */
   readonly puffs: readonly Puff[];
   readonly liveCount: number;
-  /** Advances the Smoke by `dt` seconds, releasing puffs according to `charge`. */
-  step(dt: number, charge: number): void;
+  /**
+   * Advances the Smoke by `dt` seconds, releasing puffs according to `charge`.
+   * `swirl` (0..1) blends in the spinning column played during a Wish.
+   */
+  step(dt: number, charge: number, swirl?: number): void;
+  /** Releases up to `count` puffs at once around `at` (relative to the spout tip): a dissolving Card. */
+  burst(at: { x: number; y: number; z: number }, count: number): void;
 }
 
 export interface SmokePoolOptions {
@@ -110,7 +129,7 @@ export function createSmokePool({ budget, random = Math.random }: SmokePoolOptio
   let pending = 0;
   const t = SMOKE_TUNING;
 
-  const release = (look: SmokeLook) => {
+  const release = (look: SmokeLook, at?: { x: number; y: number; z: number }) => {
     let slot = -1;
     for (let i = 0; i < pool.budget; i++) {
       if (i >= puffs.length) puffs.push(newPuff());
@@ -119,16 +138,16 @@ export function createSmokePool({ budget, random = Math.random }: SmokePoolOptio
         break;
       }
     }
-    if (slot < 0) return;
+    if (slot < 0) return false;
     const p = puffs[slot];
-    const spread = 0.04;
+    const spread = at ? 0.25 : 0.04;
     p.alive = true;
-    p.x = (random() - 0.5) * spread;
-    p.y = 0;
-    p.z = (random() - 0.5) * spread;
-    p.vx = (random() - 0.5) * 0.15;
-    p.vy = t.riseSpeed * (0.7 + random() * 0.6);
-    p.vz = (random() - 0.5) * 0.15;
+    p.x = (at?.x ?? 0) + (random() - 0.5) * spread;
+    p.y = (at?.y ?? 0) + (random() - 0.5) * spread;
+    p.z = (at?.z ?? 0) + (random() - 0.5) * spread;
+    p.vx = (random() - 0.5) * (at ? 0.5 : 0.15);
+    p.vy = at ? 0.2 + random() * 0.3 : t.riseSpeed * (0.7 + random() * 0.6);
+    p.vz = (random() - 0.5) * (at ? 0.5 : 0.15);
     p.age = 0;
     p.life = t.puffLifetime * (0.75 + random() * 0.5);
     p.size = look.size * (0.7 + random() * 0.6);
@@ -139,6 +158,7 @@ export function createSmokePool({ budget, random = Math.random }: SmokePoolOptio
     p.scale = 0;
     p.opacity = 0;
     liveCount++;
+    return true;
   };
 
   const pool: SmokePool = {
@@ -147,8 +167,13 @@ export function createSmokePool({ budget, random = Math.random }: SmokePoolOptio
     get liveCount() {
       return liveCount;
     },
-    step(dt, charge) {
+    burst(at, count) {
+      const look: SmokeLook = { emissionRate: 0, size: t.burstSize, color: t.purple };
+      for (let i = 0; i < count; i++) if (!release(look, at)) break;
+    },
+    step(dt, charge, swirl = 0) {
       time += dt;
+      const grip = 1 - Math.exp(-t.swirlGrip * swirl * dt);
 
       for (let i = 0; i < puffs.length; i++) {
         const p = puffs[i];
@@ -170,6 +195,17 @@ export function createSmokePool({ budget, random = Math.random }: SmokePoolOptio
         p.vx *= drag;
         p.vz *= drag;
         p.vy *= Math.exp(-0.25 * dt);
+        if (grip > 0) {
+          // Steer the puff onto a spinning, rising ring around the column's axis.
+          const r = Math.max(Math.hypot(p.x, p.z), 1e-3);
+          const tx = -p.z / r;
+          const tz = p.x / r;
+          const pull = (t.swirlRadius - r) * 3;
+          const speed = t.swirlSpin * r;
+          p.vx += (tx * speed + (p.x / r) * pull - p.vx) * grip;
+          p.vz += (tz * speed + (p.z / r) * pull - p.vz) * grip;
+          p.vy += (t.swirlRise - p.vy) * grip;
+        }
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.z += p.vz * dt;
@@ -180,7 +216,19 @@ export function createSmokePool({ budget, random = Math.random }: SmokePoolOptio
         p.opacity = Math.min(1, k / 0.12) * Math.pow(1 - k, 1.5);
       }
 
-      const look = smokeLook(charge);
+      const calm = smokeLook(charge);
+      const look: SmokeLook =
+        swirl > 0
+          ? {
+              emissionRate: Math.max(calm.emissionRate, t.swirlEmissionRate * swirl),
+              size: mix(calm.size, t.swirlSize, swirl),
+              color: {
+                r: mix(calm.color.r, t.purple.r, swirl),
+                g: mix(calm.color.g, t.purple.g, swirl),
+                b: mix(calm.color.b, t.purple.b, swirl),
+              },
+            }
+          : calm;
       pending += look.emissionRate * dt;
       while (pending >= 1) {
         pending -= 1;
