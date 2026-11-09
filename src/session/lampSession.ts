@@ -5,6 +5,7 @@
  * and reads back a read-only `state` snapshot to draw from.
  */
 
+import { clamp01 } from '../math';
 import { faceDownCardSource, type Card, type CardDraw, type CardSource } from './cardSource';
 
 /** Tuning constants, kept together so they're easy to change after playtesting. */
@@ -98,7 +99,6 @@ interface Point {
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 export interface LampSessionOptions {
   /** Where Wishes get their Cards. Defaults to a source whose Cards are always face-down. */

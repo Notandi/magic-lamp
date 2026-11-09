@@ -2,6 +2,7 @@ import { useMemo, useRef, type RefObject } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { LampSession } from '../session/lampSession';
+import { damp } from '../math';
 import { CARD_SIZE } from './cardLayout';
 import { hoversCards, pressesWithHand } from './pointerInput';
 
@@ -32,7 +33,6 @@ export const CARD_PLAY = {
 } as const;
 
 const smoothstep = (k: number) => k * k * (3 - 2 * k);
-const approach = (from: number, to: number, rate: number, dt: number) => from + (to - from) * (1 - Math.exp(-rate * dt));
 
 interface Drag {
   pointerId: number;
@@ -139,16 +139,16 @@ export function useCardPlay({
 
     // Hover: tilt the Card's face toward the Hand.
     const hover = settled && phase === 'showing' ? s.hover : null;
-    s.tiltY = approach(s.tiltY, hover ? hover.u * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
-    s.tiltX = approach(s.tiltX, hover ? -hover.v * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
+    s.tiltY = damp(s.tiltY, hover ? hover.u * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
+    s.tiltX = damp(s.tiltX, hover ? -hover.v * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
 
     // Flip: follow the drag, then settle onto whichever side is nearer.
-    if (!s.drag) s.flip = approach(s.flip, Math.round(s.flip / Math.PI) * Math.PI, CARD_PLAY.flipSettleRate, dt);
+    if (!s.drag) s.flip = damp(s.flip, Math.round(s.flip / Math.PI) * Math.PI, CARD_PLAY.flipSettleRate, dt);
     if (flipper.current) flipper.current.rotation.y = s.flip;
 
     // Inspect: fly up close to the camera, facing it.
     const inspected = settled && phase === 'inspecting' && inspectedCard === index;
-    s.inspect = approach(s.inspect, inspected ? 1 : 0, CARD_PLAY.inspectRate, dt);
+    s.inspect = damp(s.inspect, inspected ? 1 : 0, CARD_PLAY.inspectRate, dt);
     if (s.inspect < 1e-3) s.inspect = 0;
     const k = smoothstep(s.inspect);
     if (k > 0) {

@@ -4,6 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import handUrl from '../assets/hand/right.glb?url';
+import { damp, followAmount } from '../math';
 import { handTarget } from './handPose';
 import { rigHand } from './handRig';
 import { LAMP_OBJECT_NAME } from './Lamp';
@@ -124,12 +125,12 @@ export function Hand() {
       group.quaternion.copy(target.quaternion);
       placed.current = true;
     } else {
-      const k = 1 - Math.exp(-FOLLOW_RATE * dt);
-      group.position.lerp(target.position, k);
-      group.quaternion.slerp(target.quaternion, k);
+      const follow = followAmount(FOLLOW_RATE, dt);
+      group.position.lerp(target.position, follow);
+      group.quaternion.slerp(target.quaternion, follow);
     }
 
-    curl.current += ((pressed.current ? 1 : 0) - curl.current) * (1 - Math.exp(-CURL_RATE * dt));
+    curl.current = damp(curl.current, pressed.current ? 1 : 0, CURL_RATE, dt);
     rig.setCurl(curl.current);
   });
 

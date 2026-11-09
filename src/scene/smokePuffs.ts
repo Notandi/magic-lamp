@@ -3,6 +3,8 @@
  * No React or three.js here, so it can be tested on its own.
  */
 
+import { clamp01 } from '../math';
+
 export interface Rgb {
   r: number;
   g: number;
@@ -48,7 +50,6 @@ export const SMOKE_TUNING = {
   burstSize: 0.35,
 } as const;
 
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /** The Smoke's emission rate, puff size and colour for a given Charge (0..1). */

@@ -4,6 +4,7 @@ import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { LampSession, WishCards } from '../session/lampSession';
 import cardBackUrl from '../assets/cards/card-back.jpg';
+import { clamp01 } from '../math';
 import { CARD_SIZE, fanArc, type FanSlot } from './cardLayout';
 import type { SmokeDissolve } from './Smoke';
 import { useCardPlay } from './useCardPlay';
@@ -51,7 +52,6 @@ function facesOf(cards: WishCards): CardFaces[] {
 }
 
 const ease = (k: number) => 1 - Math.pow(1 - k, 3);
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /**
  * A Wish's Cards. They rise out of the Smoke column one after another, spinning, and settle
