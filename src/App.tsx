@@ -25,6 +25,7 @@ export function App() {
       dpr={[1, 2]}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
       camera={{ fov: 40, near: 0.1, far: 100, position: CAMERA_HOME }}
+      onPointerMissed={() => session.backgroundClicked()}
     >
       <color attach="background" args={[0x0b0710]} />
       <CameraRig />

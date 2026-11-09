@@ -43,7 +43,7 @@ export const LAMP_TUNING = {
 
 export type LampTuning = { [K in keyof typeof LAMP_TUNING]: number };
 
-export type LampPhase = 'idle' | 'rubbing' | 'wishing' | 'showing';
+export type LampPhase = 'idle' | 'rubbing' | 'wishing' | 'showing' | 'inspecting';
 
 /**
  * The Cards a Wish released: real Cards, or face-down Cards showing the card back on both sides.
@@ -65,6 +65,8 @@ export interface LampState {
   readonly wishId: number;
   /** The current Wish's Cards, or null when no Cards are out. */
   readonly cards: WishCards | null;
+  /** Index of the Card being Inspected, or null when no Card is Inspected. */
+  readonly inspectedCard: number | null;
 }
 
 /** A pointer event in screen space (CSS pixels), with whether the pointer is over any part of the Lamp. */
@@ -80,6 +82,10 @@ export interface LampSession {
   pointerUp(): void;
   /** The scene reports that the Wish animation has finished and the Cards have settled. */
   cardsSettled(): void;
+  /** The player clicked the Card at `index` in the current Wish. */
+  cardClicked(index: number): void;
+  /** The player clicked anywhere that isn't a Card. */
+  backgroundClicked(): void;
   /** Advances time by `dt` seconds. */
   tick(dt: number): void;
   readonly state: LampState;
@@ -115,6 +121,7 @@ export function createLampSession({
   let wishing = false;
   let cards: WishCards | null = null;
   let wishStartedAt = 0;
+  let inspectedCard: number | null = null;
 
   // The next Wish's Cards: requested when a Rub starts, kept until a Wish takes them.
   let nextDraw: CardDraw | 'requested' | null = null;
@@ -185,7 +192,7 @@ export function createLampSession({
   }
 
   function updateRubbing(pointer: LampPointer) {
-    const rubbing = buttonDown && pointer.overLamp && !wishing;
+    const rubbing = buttonDown && pointer.overLamp && !wishing && inspectedCard === null;
     if (rubbing && !isRubbing) {
       beginStroke(pointer);
       requestNextCards();
@@ -205,6 +212,17 @@ export function createLampSession({
     cardsSettled() {
       if (wishing && cards) wishing = false;
     },
+    cardClicked(index) {
+      // Any click while Inspecting sends the Card back; only one Card is Inspected at a time.
+      if (inspectedCard !== null) inspectedCard = null;
+      else if (!wishing && cards) {
+        inspectedCard = index;
+        isRubbing = false; // Rubbing is paused while a Card is Inspected
+      }
+    },
+    backgroundClicked() {
+      inspectedCard = null;
+    },
     pointerUp() {
       buttonDown = false;
       isRubbing = false;
@@ -219,11 +237,12 @@ export function createLampSession({
     },
     get state(): LampState {
       return {
-        phase: wishing ? 'wishing' : cards ? 'showing' : isRubbing || charge > 0 ? 'rubbing' : 'idle',
+        phase: wishing ? 'wishing' : inspectedCard !== null ? 'inspecting' : cards ? 'showing' : isRubbing || charge > 0 ? 'rubbing' : 'idle',
         charge,
         isRubbing,
         wishId,
         cards,
+        inspectedCard,
       };
     },
   };
