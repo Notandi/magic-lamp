@@ -6,7 +6,13 @@ import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
+import { SPOUT_TIP } from './scene/lampGeometry';
+import { LAMP_POSITION } from './scene/Lamp';
+import { PostFx } from './scene/PostFx';
+import { Smoke } from './scene/Smoke';
 import { createLampSession } from './session/lampSession';
+
+const SPOUT_TIP_WORLD = SPOUT_TIP.clone().add(LAMP_POSITION).toArray();
 
 export function App() {
   const session = useMemo(() => createLampSession(), []);
@@ -22,6 +28,8 @@ export function App() {
       <CameraRig />
       <Lighting />
       <Lamp session={session} />
+      <Smoke session={session} origin={SPOUT_TIP_WORLD} />
+      <PostFx />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
         <meshStandardMaterial color={0x140c1e} roughness={0.9} />

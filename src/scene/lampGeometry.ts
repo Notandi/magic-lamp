@@ -35,6 +35,17 @@ export function taperedTube(
 
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
+const spoutCurve = new THREE.CatmullRomCurve3([
+  v3(0.95, 0.8, 0),
+  v3(1.55, 0.92, 0),
+  v3(2.1, 1.12, 0),
+  v3(2.5, 1.42, 0),
+  v3(2.68, 1.6, 0),
+]);
+
+/** The spout's open tip in the Lamp's local space; Smoke rises from here. */
+export const SPOUT_TIP: Readonly<THREE.Vector3> = spoutCurve.getPointAt(1);
+
 /** All of the Lamp's geometry, ported from prototypes/code-lamp.html. */
 export function buildLampGeometry() {
   const bodyProfile: [number, number][] = [];
@@ -44,13 +55,6 @@ export function buildLampGeometry() {
     bodyProfile.push([Math.max(r, 0.0001), 0.85 + Math.sin(a) * 0.52]);
   }
 
-  const spoutCurve = new THREE.CatmullRomCurve3([
-    v3(0.95, 0.8, 0),
-    v3(1.55, 0.92, 0),
-    v3(2.1, 1.12, 0),
-    v3(2.5, 1.42, 0),
-    v3(2.68, 1.6, 0),
-  ]);
   const handleCurve = new THREE.CatmullRomCurve3([
     v3(-1.2, 1.15, 0),
     v3(-1.75, 1.35, 0),

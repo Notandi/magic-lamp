@@ -6,7 +6,7 @@ import { gemGlow } from './flicker';
 import type { LampSession } from '../session/lampSession';
 import { useLampRubInput } from './useLampRubInput';
 
-const LAMP_POSITION = new THREE.Vector3(-0.3, 0, 0);
+export const LAMP_POSITION: Readonly<THREE.Vector3> = new THREE.Vector3(-0.3, 0, 0);
 
 /** Warm brass glow colour that rises with Charge. */
 const CHARGE_GLOW = new THREE.Color(0xff8a2a);
