@@ -217,19 +217,37 @@ describe('Lamp session: the Wish', () => {
 });
 
 describe('Lamp session: Cards for the next Wish', () => {
-  it('asks the card source for the next Wish\'s Cards when a Rub starts', () => {
+  it('asks the card source for the first Wish\'s Cards as soon as the session is created', () => {
     const { source, requests } = fakeCardSource();
     const session = createLampSession({ cardSource: source });
-    session.pointerMove({ x: 0, y: 0, overLamp: true }); // hovering is not a Rub
-    expect(requests).toHaveLength(0);
-
-    pressOnLamp(session);
     expect(requests).toHaveLength(1);
     expect(requests[0].count).toBe(5);
 
+    pressOnLamp(session); // a Rub while that request is in flight asks for nothing more
     session.pointerUp();
-    pressOnLamp(session); // a second Rub before the first request resolves
+    pressOnLamp(session);
     expect(requests).toHaveLength(1);
+  });
+
+  it('asks for the next Wish\'s Cards as soon as a Wish takes its Cards', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    requests[0].resolve({ kind: 'cards', cards: fiveCards() });
+    await flush();
+    expect(requests).toHaveLength(1); // prepared Cards wait for the Wish; no second request yet
+
+    rubUntilWish(session);
+    expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
+    expect(requests).toHaveLength(2);
+  });
+
+  it('asks again right after a Wish takes face-down Cards for "magic unavailable"', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    requests[0].resolve({ kind: 'magic-unavailable' });
+    await flush();
+    rubUntilWish(session);
+    expect(requests).toHaveLength(2);
   });
 });
 
@@ -364,8 +382,8 @@ describe('Lamp session: Cards that are not ready when Charge fills', () => {
     session.cardsSettled();
     session.pointerUp();
     pressOnLamp(session);
+    expect(requests).toHaveLength(1); // the late Cards are ready, so the Rub asks for nothing
     rub(session, 20);
-    expect(requests).toHaveLength(1);
     expect(session.state.wishId).toBe(2);
     expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
   });

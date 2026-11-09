@@ -32,13 +32,14 @@ export const LAMP_TUNING = {
   /**
    * Seconds a Wish waits for its Cards if the card source hasn't answered when Charge fills.
    *
-   * The rule: the next Wish's Cards are requested when a Rub starts, so they usually arrive
-   * during the ~6 s of Rubbing (Scryfall needs ~3–6 s for 5 Cards). The Wish itself always
+   * The rule: the next Wish's Cards are requested as soon as the session is created and again
+   * the moment a Wish takes its Cards, so they are normally ready long before Charge fills
+   * (Scryfall can need ~10 s for 5 Cards and their images). The Wish itself always
    * starts the moment Charge fills; while its Cards are missing, `state.cards` is null and the
    * Smoke column keeps spinning. If they arrive within this wait they rise as usual; otherwise
    * the Cards rise face-down (`reason: 'not-ready'`), and the late Cards are kept for the next Wish.
    */
-  cardWaitSeconds: 2,
+  cardWaitSeconds: 4,
 } as const;
 
 export type LampTuning = { [K in keyof typeof LAMP_TUNING]: number };
@@ -123,7 +124,8 @@ export function createLampSession({
   let wishStartedAt = 0;
   let inspectedCard: number | null = null;
 
-  // The next Wish's Cards: requested when a Rub starts, kept until a Wish takes them.
+  // The next Wish's Cards: requested up front and after each Wish takes its Cards, kept until
+  // a Wish takes them. At most one request is in flight.
   let nextDraw: CardDraw | 'requested' | null = null;
 
   function requestNextCards() {
@@ -177,6 +179,7 @@ export function createLampSession({
         ? { kind: 'cards', cards: nextDraw.cards }
         : { kind: 'face-down', count: t.cardsPerWish, reason: 'magic-unavailable' };
     nextDraw = null;
+    requestNextCards();
   }
 
   function followRub(at: Point) {
@@ -195,11 +198,13 @@ export function createLampSession({
     const rubbing = buttonDown && pointer.overLamp && !wishing && inspectedCard === null;
     if (rubbing && !isRubbing) {
       beginStroke(pointer);
-      requestNextCards();
+      requestNextCards(); // in case nothing is ready or on its way
     }
     isRubbing = rubbing;
     if (rubbing) followRub(pointer);
   }
+
+  requestNextCards();
 
   return {
     pointerDown(pointer) {
