@@ -9,7 +9,7 @@ import { useLampRubInput } from './useLampRubInput';
 /** Name of the Lamp's root object, so other scene parts (like the Hand) can raycast it. */
 export const LAMP_OBJECT_NAME = 'lamp';
 
-const LAMP_POSITION = new THREE.Vector3(-0.3, 0, 0);
+export const LAMP_POSITION: Readonly<THREE.Vector3> = new THREE.Vector3(-0.3, 0, 0);
 
 /** Warm brass glow colour that rises with Charge. */
 const CHARGE_GLOW = new THREE.Color(0xff8a2a);
