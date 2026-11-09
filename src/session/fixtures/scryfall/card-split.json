@@ -1,0 +1,69 @@
+{
+  "object": "card",
+  "id": "d94fb4da-0d3f-4d84-966b-914b84b23289",
+  "oracle_id": "f97de425-c7ab-4688-8606-159370d179ee",
+  "name": "Defiled Crypt // Cadaver Lab",
+  "lang": "en",
+  "released_at": "2024-09-27",
+  "uri": "https://api.scryfall.com/cards/d94fb4da-0d3f-4d84-966b-914b84b23289",
+  "scryfall_uri": "https://scryfall.com/card/dsk/91/defiled-crypt-cadaver-lab?utm_source=api",
+  "layout": "split",
+  "highres_image": true,
+  "image_status": "highres_scan",
+  "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.jpg?1783909484",
+    "normal": "https://cards.scryfall.io/normal/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.jpg?1783909484",
+    "large": "https://cards.scryfall.io/large/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.jpg?1783909484",
+    "png": "https://cards.scryfall.io/png/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.png?1783909484",
+    "art_crop": "https://cards.scryfall.io/art_crop/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.jpg?1783909484",
+    "border_crop": "https://cards.scryfall.io/border_crop/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.jpg?1783909484",
+    "thumb": "https://cards.scryfall.io/thumb/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.webp?1783909484",
+    "grid": "https://cards.scryfall.io/grid/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.webp?1783909484",
+    "display": "https://cards.scryfall.io/display/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.webp?1783909484",
+    "art": "https://cards.scryfall.io/art/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.webp?1783909484",
+    "crop": "https://cards.scryfall.io/crop/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.webp?1783909484",
+    "jpeg": "https://cards.scryfall.io/normal/front/d/9/d94fb4da-0d3f-4d84-966b-914b84b23289.jpg?1783909484"
+  },
+  "mana_cost": "{3}{B} // {B}",
+  "cmc": 5.0,
+  "type_line": "Enchantment — Room // Enchantment — Room",
+  "colors": [
+    "B"
+  ],
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Defiled Crypt",
+      "mana_cost": "{3}{B}",
+      "type_line": "Enchantment — Room",
+      "oracle_text": "Whenever one or more cards leave your graveyard, create a 2/2 black Horror enchantment creature token. This ability triggers only once each turn.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)",
+      "artist": "Martin de Diego Sádaba",
+      "illustration_id": "d28a4287-7e7b-4dd3-b09b-10dde4e33d0a"
+    },
+    {
+      "object": "card_face",
+      "name": "Cadaver Lab",
+      "mana_cost": "{B}",
+      "type_line": "Enchantment — Room",
+      "oracle_text": "When you unlock this door, return target creature card from your graveyard to your hand.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)",
+      "artist": "Martin de Diego Sádaba"
+    }
+  ],
+  "set": "dsk",
+  "set_name": "Duskmourn: House of Horror",
+  "set_type": "expansion",
+  "collector_number": "91",
+  "rarity": "uncommon",
+  "artist": "Martin de Diego Sádaba",
+  "card_back_id": "0aeebaf5-8c7d-4636-9e82-8c27447861f7",
+  "border_color": "black",
+  "frame": "2015",
+  "full_art": false,
+  "games": [
+    "paper",
+    "mtgo",
+    "arena"
+  ],
+  "digital": false,
+  "oversized": false
+}

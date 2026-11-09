@@ -1,0 +1,81 @@
+{
+  "object": "card",
+  "id": "d4d379b5-7f56-4a7d-a4ac-131fc3d579c6",
+  "oracle_id": "8e4d0da0-c7d8-4a20-9bfd-02c1331a7a49",
+  "name": "Primal Amulet // Primal Wellspring",
+  "lang": "en",
+  "released_at": "2017-09-29",
+  "uri": "https://api.scryfall.com/cards/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6",
+  "scryfall_uri": "https://scryfall.com/card/xln/243/primal-amulet-primal-wellspring?utm_source=api",
+  "layout": "transform",
+  "highres_image": true,
+  "image_status": "highres_scan",
+  "cmc": 4.0,
+  "type_line": "Artifact // Land",
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Primal Amulet",
+      "mana_cost": "{4}",
+      "type_line": "Artifact",
+      "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever you cast an instant or sorcery spell, put a charge counter on this artifact. Then if there are four or more charge counters on it, you may remove those counters and transform it.",
+      "colors": [],
+      "artist": "John Avon",
+      "illustration_id": "2b1ac5b7-96ee-4c97-984e-783224232f89",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "normal": "https://cards.scryfall.io/normal/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "large": "https://cards.scryfall.io/large/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "png": "https://cards.scryfall.io/png/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.png?1783935709",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "thumb": "https://cards.scryfall.io/thumb/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "grid": "https://cards.scryfall.io/grid/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "display": "https://cards.scryfall.io/display/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "art": "https://cards.scryfall.io/art/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "crop": "https://cards.scryfall.io/crop/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "jpeg": "https://cards.scryfall.io/normal/front/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709"
+      }
+    },
+    {
+      "object": "card_face",
+      "name": "Primal Wellspring",
+      "mana_cost": "",
+      "type_line": "Land",
+      "oracle_text": "(Transforms from Primal Amulet.)\n{T}: Add one mana of any color. When that mana is spent to cast an instant or sorcery spell, copy that spell and you may choose new targets for the copy.",
+      "colors": [],
+      "artist": "John Avon",
+      "illustration_id": "2b4ccae0-92f9-4b9b-9e91-3a033def20a7",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "normal": "https://cards.scryfall.io/normal/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "large": "https://cards.scryfall.io/large/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "png": "https://cards.scryfall.io/png/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.png?1783935709",
+        "art_crop": "https://cards.scryfall.io/art_crop/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "border_crop": "https://cards.scryfall.io/border_crop/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709",
+        "thumb": "https://cards.scryfall.io/thumb/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "grid": "https://cards.scryfall.io/grid/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "display": "https://cards.scryfall.io/display/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "art": "https://cards.scryfall.io/art/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "crop": "https://cards.scryfall.io/crop/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.webp?1783935709",
+        "jpeg": "https://cards.scryfall.io/normal/back/d/4/d4d379b5-7f56-4a7d-a4ac-131fc3d579c6.jpg?1783935709"
+      }
+    }
+  ],
+  "set": "xln",
+  "set_name": "Ixalan",
+  "set_type": "expansion",
+  "collector_number": "243",
+  "rarity": "rare",
+  "artist": "John Avon",
+  "border_color": "black",
+  "frame": "2015",
+  "full_art": false,
+  "games": [
+    "arena",
+    "paper",
+    "mtgo"
+  ],
+  "digital": false,
+  "oversized": false
+}

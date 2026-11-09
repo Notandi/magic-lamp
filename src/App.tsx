@@ -1,7 +1,9 @@
 import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
+import cardBackUrl from './assets/cards/card-back.jpg';
 import { Credits } from './credits/Credits';
+import { MagicUnavailableNote } from './overlay/MagicUnavailableNote';
 import { AdaptiveQuality } from './scene/AdaptiveQuality';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
@@ -12,12 +14,18 @@ import { SPOUT_TIP } from './scene/lampGeometry';
 import { LAMP_POSITION } from './scene/Lamp';
 import { PostFx } from './scene/PostFx';
 import { Wish } from './scene/Wish';
+import { loadCardImage } from './scene/cardImages';
 import { createLampSession } from './session/lampSession';
+import { preloadingCardSource } from './session/preloadingCardSource';
+import { createScryfallCardSource } from './session/scryfallCardSource';
 
 const SPOUT_TIP_WORLD = SPOUT_TIP.clone().add(LAMP_POSITION).toArray();
 
+/** Real Cards from Scryfall, with their images loaded before the Wish; the bundled card back saves a download. */
+const scryfallCards = () => preloadingCardSource(createScryfallCardSource({ cardBackUrl }), loadCardImage);
+
 export function App() {
-  const session = useMemo(() => createLampSession(), []);
+  const session = useMemo(() => createLampSession({ cardSource: scryfallCards() }), []);
   return (
     <>
     <Canvas
@@ -47,6 +55,7 @@ export function App() {
         <meshStandardMaterial color={0x140c1e} roughness={0.9} />
       </mesh>
     </Canvas>
+    <MagicUnavailableNote session={session} />
     <Credits />
     </>
   );
