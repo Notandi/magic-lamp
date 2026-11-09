@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from 'react';
+import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import cardBackUrl from './assets/cards/card-back.jpg';
@@ -15,7 +15,7 @@ import { LAMP_POSITION } from './scene/Lamp';
 import { PostFx } from './scene/PostFx';
 import { Wish } from './scene/Wish';
 import { loadCardImage } from './scene/cardImages';
-import { createLampSession } from './session/lampSession';
+import { createLampSession, type LampSession } from './session/lampSession';
 import { preloadingCardSource } from './session/preloadingCardSource';
 import { createScryfallCardSource } from './session/scryfallCardSource';
 
@@ -24,8 +24,15 @@ const SPOUT_TIP_WORLD = SPOUT_TIP.clone().add(LAMP_POSITION).toArray();
 /** Real Cards from Scryfall, with their images loaded before the Wish; the bundled card back saves a download. */
 const scryfallCards = () => preloadingCardSource(createScryfallCardSource({ cardBackUrl }), loadCardImage);
 
+/**
+ * The page's one Lamp session. Creating a session starts drawing its first Wish's Cards, so it
+ * lives outside React: StrictMode's double render would otherwise make two, each drawing Cards.
+ */
+let pageSession: LampSession | undefined;
+const lampSession = () => (pageSession ??= createLampSession({ cardSource: scryfallCards() }));
+
 export function App() {
-  const session = useMemo(() => createLampSession({ cardSource: scryfallCards() }), []);
+  const session = lampSession();
   return (
     <>
     <Canvas

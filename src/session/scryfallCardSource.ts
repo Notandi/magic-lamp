@@ -31,8 +31,50 @@ export const RANDOM_CARD_QUERY = [
 
 /** Scryfall asks for at most 2 random-card requests per second. */
 const DEFAULT_REQUEST_SPACING_MS = 500;
-/** A random-card request normally takes 1–2 s; one taking longer than this counts as failed. */
-const DEFAULT_TIMEOUT_MS = 8000;
+/** Scryfall asks for a 50–100 ms pause between requests; requests are sent one after another. */
+const DEFAULT_REQUEST_GAP_MS = 100;
+/** A lone random-card request normally takes 1–2 s; one taking longer than this counts as failed. */
+const DEFAULT_TIMEOUT_MS = 6000;
+
+/**
+ * Sends requests to Scryfall one at a time: each starts only after the previous one has
+ * answered and a short gap has passed, and at least the rate-limit spacing after the previous
+ * one started. Overlapping requests only queue up on Scryfall's side and make each one slower.
+ */
+export interface ScryfallRequestQueue {
+  run<T>(request: () => Promise<T>): Promise<T>;
+}
+
+export interface ScryfallRequestQueueOptions {
+  /** Least time between one request answering and the next one starting. */
+  gapMs?: number;
+  /** Least time between the starts of two requests. */
+  spacingMs?: number;
+}
+
+export function createScryfallRequestQueue({
+  gapMs = DEFAULT_REQUEST_GAP_MS,
+  spacingMs = DEFAULT_REQUEST_SPACING_MS,
+}: ScryfallRequestQueueOptions = {}): ScryfallRequestQueue {
+  let free: Promise<unknown> = Promise.resolve();
+  return {
+    run(request) {
+      const turn = free.then(() => {
+        const spaced = sleep(spacingMs);
+        const result = request();
+        return { result, done: Promise.all([spaced, result.catch(() => {}).then(() => sleep(gapMs))]) };
+      });
+      free = turn.then(({ done }) => done);
+      return turn.then(({ result }) => result);
+    },
+  };
+}
+
+const sleep = (ms: number) =>
+  ms > 0 ? new Promise<void>((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
+
+/** The queue every Scryfall card source uses unless given its own, so no two of them overlap requests. */
+const sharedRequestQueue = createScryfallRequestQueue();
 
 /** The subset of a Scryfall card object the source reads. */
 interface ScryfallCard {
@@ -46,9 +88,9 @@ export interface ScryfallCardSourceOptions {
   fetch?: typeof globalThis.fetch;
   /** Image used for the back of single-faced Cards. Defaults to Scryfall's copy of the official card back. */
   cardBackUrl?: string;
-  /** Least time between the starts of two requests to Scryfall. */
-  requestSpacingMs?: number;
-  /** How long a single request may take before the Wish counts the magic as unavailable. */
+  /** Paces requests to Scryfall. Defaults to one queue shared by every Scryfall card source. */
+  queue?: ScryfallRequestQueue;
+  /** How long a single request may take before it counts as failed. */
   timeoutMs?: number;
 }
 
@@ -65,49 +107,41 @@ function toCard(card: ScryfallCard, cardBackUrl: string): Card {
   };
 }
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 /**
- * Draws Cards from Scryfall, one random-card request per Card. Requests overlap but their
- * starts are spaced out, across Wishes too. If any request fails, times out, or answers with
- * anything but 200, the whole draw is "magic unavailable". Never rejects.
+ * Draws Cards from Scryfall, one random-card request per Card, sent one at a time through the
+ * request queue. A request that fails, times out, or answers with anything but 200 is retried
+ * once; if the retry fails too, the whole draw is "magic unavailable". Never rejects.
  */
 export function createScryfallCardSource({
   fetch = globalThis.fetch.bind(globalThis),
   cardBackUrl = SCRYFALL_CARD_BACK_URL,
-  requestSpacingMs = DEFAULT_REQUEST_SPACING_MS,
+  queue = sharedRequestQueue,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: ScryfallCardSourceOptions = {}): CardSource {
   const url = `${RANDOM_CARD_URL}?${new URLSearchParams({ q: RANDOM_CARD_QUERY })}`;
-  let nextSlotAt = 0;
 
-  /** Waits for this request's turn under the rate limit. */
-  function takeSlot(): Promise<void> {
-    const now = performance.now();
-    const at = Math.max(now, nextSlotAt);
-    nextSlotAt = at + requestSpacingMs;
-    return at > now ? sleep(at - now) : Promise.resolve();
+  async function requestCard(): Promise<Card> {
+    const timeout = new AbortController();
+    const timer = setTimeout(() => timeout.abort(new DOMException('Scryfall took too long', 'TimeoutError')), timeoutMs);
+    try {
+      const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: timeout.signal });
+      if (response.status !== 200) throw new Error(`Scryfall answered ${response.status}`);
+      return toCard((await response.json()) as ScryfallCard, cardBackUrl);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
-  async function drawCard(signal: AbortSignal): Promise<Card> {
-    await takeSlot();
-    signal.throwIfAborted();
-    const response = await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
-    });
-    if (response.status !== 200) throw new Error(`Scryfall answered ${response.status}`);
-    return toCard((await response.json()) as ScryfallCard, cardBackUrl);
-  }
+  const drawCard = () => queue.run(requestCard).catch(() => queue.run(requestCard));
 
   return {
     async drawCards(count): Promise<CardDraw> {
-      const draw = new AbortController();
       try {
-        const cards = await Promise.all(Array.from({ length: count }, () => drawCard(draw.signal)));
+        const cards: Card[] = [];
+        // One at a time: a Card that can't be drawn ends the draw without spending the rate limit on the rest.
+        for (let i = 0; i < count; i++) cards.push(await drawCard());
         return { kind: 'cards', cards };
       } catch {
-        draw.abort(); // one Card failed: don't spend the rate limit on the rest
         return { kind: 'magic-unavailable' };
       }
     },

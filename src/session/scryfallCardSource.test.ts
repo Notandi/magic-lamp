@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { createScryfallCardSource, SCRYFALL_CARD_BACK_URL } from './scryfallCardSource';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createScryfallCardSource, createScryfallRequestQueue, SCRYFALL_CARD_BACK_URL } from './scryfallCardSource';
 import normal from './fixtures/scryfall/card-normal.json';
 import transform from './fixtures/scryfall/card-transform.json';
 import modalDfc from './fixtures/scryfall/card-modal_dfc.json';
@@ -19,7 +19,10 @@ function fakeFetch(...bodies: unknown[]) {
   return { fetch, urls };
 }
 
-const source = (fetch: typeof globalThis.fetch) => createScryfallCardSource({ fetch, requestSpacingMs: 0 });
+/** A request queue without pauses, so tests that aren't about pacing run instantly. */
+const unpaced = () => createScryfallRequestQueue({ gapMs: 0, spacingMs: 0 });
+
+const source = (fetch: typeof globalThis.fetch) => createScryfallCardSource({ fetch, queue: unpaced() });
 
 describe('Scryfall card source', () => {
   it('maps a normal card to its face and the official card back', async () => {
@@ -66,7 +69,7 @@ describe('Scryfall card source', () => {
 
   it('can use a local copy of the card back', async () => {
     const { fetch } = fakeFetch(normal);
-    const draw = await createScryfallCardSource({ fetch, requestSpacingMs: 0, cardBackUrl: '/back.jpg' }).drawCards(1);
+    const draw = await createScryfallCardSource({ fetch, queue: unpaced(), cardBackUrl: '/back.jpg' }).drawCards(1);
     expect(draw.kind === 'cards' && draw.cards[0].backImageUrl).toBe('/back.jpg');
   });
 
@@ -111,10 +114,10 @@ describe('Scryfall card source when the magic is unavailable', () => {
     await expect(source(fetch).drawCards(5)).resolves.toEqual(unavailable);
   });
 
-  it('reports magic unavailable if any one of the Cards fails', async () => {
+  it('reports magic unavailable if any one of the Cards fails, retry included', async () => {
     let calls = 0;
     const fetch = async () =>
-      ++calls === 3
+      [3, 4].includes(++calls)
         ? new Response('{}', { status: 429 })
         : new Response(JSON.stringify(normal), { status: 200 });
     await expect(source(fetch).drawCards(5)).resolves.toEqual(unavailable);
@@ -130,23 +133,128 @@ describe('Scryfall card source when the magic is unavailable', () => {
       new Promise<Response>((_resolve, reject) =>
         init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))),
       );
-    const timed = createScryfallCardSource({ fetch, requestSpacingMs: 0, timeoutMs: 20 });
+    const timed = createScryfallCardSource({ fetch, queue: unpaced(), timeoutMs: 20 });
     await expect(timed.drawCards(1)).resolves.toEqual(unavailable);
   });
 });
 
-describe('Scryfall card source rate limiting', () => {
-  it('spaces its requests to respect the rate limit', async () => {
+describe('Scryfall card source pacing', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A fake `fetch` whose responses the test hands out by hand; records when each request starts and ends. */
+  function manualFetch() {
+    const pending: { respond: (status?: number) => void }[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetch = (_: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        init?.signal?.addEventListener('abort', () => {
+          inFlight--;
+          reject(new DOMException('Timed out', 'TimeoutError'));
+        });
+        pending.push({
+          respond: (status = 200) => {
+            inFlight--;
+            resolve(new Response(JSON.stringify(normal), { status }));
+          },
+        });
+      });
+    return {
+      fetch,
+      requests: () => pending.length,
+      respond: (index: number, status?: number) => pending[index].respond(status),
+      maxInFlight: () => maxInFlight,
+    };
+  }
+
+  it('requests one Card at a time, each a short gap after the previous one answered', async () => {
+    vi.useFakeTimers();
+    const scryfall = manualFetch();
+    const queue = createScryfallRequestQueue({ gapMs: 100, spacingMs: 0 });
+    const draw = createScryfallCardSource({ fetch: scryfall.fetch, queue }).drawCards(2);
+
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(scryfall.requests()).toBe(1); // a slow answer holds the next request back
+
+    scryfall.respond(0);
+    await vi.advanceTimersByTimeAsync(99);
+    expect(scryfall.requests()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(scryfall.requests()).toBe(2);
+
+    scryfall.respond(1);
+    await expect(draw).resolves.toMatchObject({ kind: 'cards' });
+  });
+
+  it('keeps requests at least the rate-limit spacing apart, across Wishes too', async () => {
+    vi.useFakeTimers();
     const starts: number[] = [];
     const fetch = async () => {
-      starts.push(performance.now());
+      starts.push(Date.now());
       return new Response(JSON.stringify(normal), { status: 200 });
     };
-    const spaced = createScryfallCardSource({ fetch, requestSpacingMs: 30 });
-    await spaced.drawCards(3);
-    await spaced.drawCards(1);
+    const scryfall = createScryfallCardSource({ fetch, queue: createScryfallRequestQueue({ gapMs: 100, spacingMs: 500 }) });
+    const first = scryfall.drawCards(3);
+    const second = scryfall.drawCards(1);
+    await vi.advanceTimersByTimeAsync(5000);
+    await Promise.all([first, second]);
     const gaps = starts.slice(1).map((t, i) => t - starts[i]);
-    expect(gaps).toHaveLength(3);
-    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(28);
+    expect(gaps).toEqual([500, 500, 500]);
+  });
+
+  it('never overlaps requests from two card sources sharing the default queue', async () => {
+    vi.useFakeTimers();
+    const scryfall = manualFetch();
+    const one = createScryfallCardSource({ fetch: scryfall.fetch }).drawCards(2);
+    const two = createScryfallCardSource({ fetch: scryfall.fetch }).drawCards(2);
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(scryfall.requests()).toBe(i + 1);
+      scryfall.respond(i);
+    }
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(one).resolves.toMatchObject({ kind: 'cards' });
+    await expect(two).resolves.toMatchObject({ kind: 'cards' });
+    expect(scryfall.maxInFlight()).toBe(1);
+  });
+
+  it('retries a failed request once', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetch = async () => {
+      if (++calls === 2) throw new TypeError('Failed to fetch');
+      return new Response(JSON.stringify(normal), { status: 200 });
+    };
+    const draw = createScryfallCardSource({ fetch, queue: unpaced() }).drawCards(3);
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(draw).resolves.toMatchObject({ kind: 'cards' });
+    expect(calls).toBe(4);
+  });
+
+  it('retries a timed-out request once', async () => {
+    vi.useFakeTimers();
+    const scryfall = manualFetch();
+    const draw = createScryfallCardSource({ fetch: scryfall.fetch, queue: unpaced(), timeoutMs: 5000 }).drawCards(1);
+    await vi.advanceTimersByTimeAsync(5000); // the first attempt times out
+    expect(scryfall.requests()).toBe(2);
+    scryfall.respond(1);
+    await expect(draw).resolves.toMatchObject({ kind: 'cards' });
+  });
+
+  it('gives up with magic unavailable when the retry fails too, without requesting the rest', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetch = async () => {
+      calls++;
+      throw new TypeError('Failed to fetch');
+    };
+    const draw = createScryfallCardSource({ fetch, queue: unpaced() }).drawCards(5);
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(draw).resolves.toEqual({ kind: 'magic-unavailable' });
+    expect(calls).toBe(2);
   });
 });
