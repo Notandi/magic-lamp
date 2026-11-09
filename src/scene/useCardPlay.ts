@@ -3,6 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { LampSession } from '../session/lampSession';
 import { CARD_SIZE } from './cardLayout';
+import { hoversCards, pressesWithHand } from './pointerInput';
 
 /** Tuning for playing with settled Cards: hover tilt, drag-to-flip and Inspect. */
 export const CARD_PLAY = {
@@ -82,7 +83,7 @@ export function useCardPlay({
 
     const trackHover = (e: ThreeEvent<PointerEvent>) => {
       const g = card.current;
-      if (!g || !canHover()) {
+      if (!g || !canHover() || !hoversCards(e.nativeEvent)) {
         s.hover = null;
         return;
       }
@@ -115,7 +116,7 @@ export function useCardPlay({
       },
       onPointerDown(e: ThreeEvent<PointerEvent>) {
         e.stopPropagation();
-        if (e.button !== 0 || !canFlip()) return;
+        if (!pressesWithHand(e.nativeEvent) || !canFlip()) return;
         s.drag = { pointerId: e.pointerId, startX: e.nativeEvent.clientX, startFlip: s.flip };
         s.hover = null;
         (e.target as Element).setPointerCapture?.(e.pointerId);

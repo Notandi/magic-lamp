@@ -34,6 +34,8 @@ export function App() {
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
       camera={{ fov: 40, near: 0.1, far: 100, position: CAMERA_HOME }}
       onPointerMissed={() => session.backgroundClicked()}
+      // Dragging on the canvas Rubs, flips Cards and moves the Hand; it must never scroll, zoom or select the page.
+      style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
     >
       <color attach="background" args={[0x0b0710]} />
       <CameraRig />
