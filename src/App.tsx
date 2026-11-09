@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Credits } from './credits/Credits';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
+import { Hand } from './scene/Hand';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
 import { createLampSession } from './session/lampSession';
@@ -22,6 +23,9 @@ export function App() {
       <CameraRig />
       <Lighting />
       <Lamp session={session} />
+      <Suspense fallback={null}>
+        <Hand />
+      </Suspense>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
         <meshStandardMaterial color={0x140c1e} roughness={0.9} />

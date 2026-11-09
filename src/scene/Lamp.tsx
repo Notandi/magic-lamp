@@ -6,6 +6,9 @@ import { gemGlow } from './flicker';
 import type { LampSession } from '../session/lampSession';
 import { useLampRubInput } from './useLampRubInput';
 
+/** Name of the Lamp's root object, so other scene parts (like the Hand) can raycast it. */
+export const LAMP_OBJECT_NAME = 'lamp';
+
 const LAMP_POSITION = new THREE.Vector3(-0.3, 0, 0);
 
 /** Warm brass glow colour that rises with Charge. */
@@ -67,7 +70,7 @@ export function Lamp({ session }: { session: LampSession }) {
   });
 
   return (
-    <group ref={root} position={LAMP_POSITION}>
+    <group ref={root} name={LAMP_OBJECT_NAME} position={LAMP_POSITION}>
       <pointLight ref={glowLight} color={0xffa040} intensity={0} distance={6} decay={2} position={[0, 1.2, 0]} />
       <mesh geometry={geo.foot} material={darkBrass} castShadow receiveShadow />
       <mesh geometry={geo.body} material={brass} scale={[1.35, 1, 0.85]} castShadow receiveShadow />
