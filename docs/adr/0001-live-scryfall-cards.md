@@ -1,0 +1,3 @@
+# Cards come live from Scryfall, so the app stays non-commercial
+
+Each Wish draws random real Magic: The Gathering cards from the Scryfall API at runtime, instead of shipping a fixed set of cards or inventing our own. That gives every Wish the whole history of the game, but it adds two constraints the code doesn't show. The app depends on Scryfall being reachable: if it isn't, Cards come out face-down. And because we show Wizards of the Coast's card art and card back, the project must stay free and non-commercial under Wizards' Fan Content Policy. To sell or promote it as a product, switch to original card designs.
