@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { LampSession } from '../session/lampSession';
 import { createSmokePool } from './smokePuffs';
 
-/** Default particle budget: the most Smoke puffs alive at once. Adaptive quality (#11) lowers it. */
+/** Default Smoke budget: the most Smoke puffs alive at once. Adaptive quality (#11) lowers it. */
 export const DEFAULT_SMOKE_BUDGET = 400;
 
 /**

@@ -85,7 +85,7 @@ describe('Lamp session: Rubbing builds Charge', () => {
     expect(session.state.charge).toBe(0);
   });
 
-  it('tiny back-and-forth jiggles shorter than the minimum stroke add no Charge', () => {
+  it('tiny back-and-forth jiggles shorter than the minimum Rub stroke add no Charge', () => {
     const session = createLampSession();
     pressOnLamp(session);
     rub(session, 30, 10, 0.05);
@@ -122,7 +122,7 @@ describe('Lamp session: Rubbing builds Charge', () => {
     expect(session.state.isRubbing).toBe(false);
   });
 
-  it('a stroke dragged off the Lamp and back does not count', () => {
+  it('a Rub stroke dragged off the Lamp and back does not count', () => {
     const session = createLampSession();
     pressOnLamp(session);
     dragTo(session, 0, 100, 1 / 3);
@@ -134,7 +134,7 @@ describe('Lamp session: Rubbing builds Charge', () => {
   it('Charge builds at a rate that fills it in about 6 s of steady Rubbing', () => {
     const halfway = createLampSession();
     pressOnLamp(halfway);
-    rub(halfway, 9); // 3 s at 3 strokes per second
+    rub(halfway, 9); // 3 s at 3 Rub strokes per second
     expect(halfway.state.charge).toBeGreaterThan(0.35);
     expect(halfway.state.charge).toBeLessThan(0.65);
 
@@ -206,7 +206,7 @@ describe('Lamp session: the Wish', () => {
     const session = createLampSession();
     expect(session.state.wishId).toBe(0);
     pressOnLamp(session);
-    rub(session, 19); // 18 strokes fill Charge; the 19th leg's reversal ends the 18th
+    rub(session, 19); // 18 Rub strokes fill Charge; the 19th leg's reversal ends the 18th
     expect(session.state.phase).toBe('wishing');
     expect(session.state.wishId).toBe(1);
     expect(session.state.charge).toBe(0);
@@ -345,7 +345,7 @@ describe('Lamp session: during and after a Wish', () => {
     expect(session.state.phase).toBe('showing');
     expect(session.state.cards).not.toBeNull();
 
-    dragTo(session, 100, 0, 1 / 3); // the reversal counts the stroke
+    dragTo(session, 100, 0, 1 / 3); // the reversal counts the Rub stroke
     expect(session.state.phase).toBe('rubbing');
     expect(session.state.cards).toBeNull();
     expect(session.state.charge).toBeGreaterThan(0);

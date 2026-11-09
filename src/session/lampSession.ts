@@ -12,16 +12,16 @@ export const LAMP_TUNING = {
   /** Seconds of steady back-and-forth Rubbing that take Charge from 0 to 1. */
   fillSeconds: 6,
   /** Rub strokes per second that count as "steady" Rubbing. */
-  steadyStrokesPerSecond: 3,
+  steadyRubStrokesPerSecond: 3,
   /** Minimum distance (CSS pixels) a drag must travel before reversing for it to count as a Rub stroke. */
-  minStrokeDistance: 40,
+  minRubStrokeDistance: 40,
   /** Distance (CSS pixels) the pointer must travel back before a reversal is recognised; filters jitter. */
   reversalDistance: 8,
   /** Rub stroke speed (CSS pixels/second) at or below which no speed bonus applies. */
-  steadyStrokeSpeed: 300,
-  /** Largest extra Charge a fast Rub stroke earns, as a fraction of a normal stroke's Charge. */
+  steadyRubStrokeSpeed: 300,
+  /** Largest extra Charge a fast Rub stroke earns, as a fraction of a normal Rub stroke's Charge. */
   maxSpeedBonus: 0.25,
-  /** Stroke speed, as a multiple of the steady speed, at which the full speed bonus is reached. */
+  /** Rub stroke speed, as a multiple of the steady speed, at which the full speed bonus is reached. */
   fullBonusSpeedMultiple: 2,
   /** Seconds without a Rub stroke before Charge starts draining. */
   drainDelaySeconds: 1.5,
@@ -108,16 +108,16 @@ export interface LampSessionOptions {
 
 export function createLampSession({
   cardSource = faceDownCardSource,
-  tuning = {},
+  tuning: overrides = {},
 }: LampSessionOptions = {}): LampSession {
-  const t: LampTuning = { ...LAMP_TUNING, ...tuning };
-  const chargePerStroke = 1 / (t.fillSeconds * t.steadyStrokesPerSecond);
+  const tuning: LampTuning = { ...LAMP_TUNING, ...overrides };
+  const chargePerRubStroke = 1 / (tuning.fillSeconds * tuning.steadyRubStrokesPerSecond);
 
   let now = 0;
   let charge = 0;
   let buttonDown = false;
   let isRubbing = false;
-  let lastStrokeAt = -Infinity;
+  let lastRubStrokeAt = -Infinity;
   let wishId = 0;
   let wishing = false;
   let cards: WishCards | null = null;
@@ -134,7 +134,7 @@ export function createLampSession({
     if (nextDraw !== null) return;
     nextDraw = 'requested';
     cardSource
-      .drawCards(t.cardsPerWish)
+      .drawCards(tuning.cardsPerWish)
       .catch((): CardDraw => ({ kind: 'magic-unavailable' }))
       .then((draw) => {
         nextDraw = draw;
@@ -146,23 +146,23 @@ export function createLampSession({
   }
 
   // The Rub stroke in progress: where it began, and the farthest point reached from there.
-  let strokeStart: Point = { x: 0, y: 0 };
-  let strokeStartedAt = 0;
-  let extreme: Point = strokeStart;
+  let rubStrokeStart: Point = { x: 0, y: 0 };
+  let rubStrokeStartedAt = 0;
+  let extreme: Point = rubStrokeStart;
 
-  function beginStroke(from: Point, current: Point = from) {
-    strokeStart = { x: from.x, y: from.y };
-    strokeStartedAt = now;
+  function beginRubStroke(from: Point, current: Point = from) {
+    rubStrokeStart = { x: from.x, y: from.y };
+    rubStrokeStartedAt = now;
     extreme = { x: current.x, y: current.y };
   }
 
-  function addStrokeCharge(length: number, seconds: number) {
+  function addRubStrokeCharge(length: number, seconds: number) {
     const speed = length / Math.max(seconds, 1e-3);
-    const over = (speed - t.steadyStrokeSpeed) / (t.steadyStrokeSpeed * (t.fullBonusSpeedMultiple - 1));
-    const bonus = clamp01(over) * t.maxSpeedBonus;
+    const over = (speed - tuning.steadyRubStrokeSpeed) / (tuning.steadyRubStrokeSpeed * (tuning.fullBonusSpeedMultiple - 1));
+    const bonus = clamp01(over) * tuning.maxSpeedBonus;
     cards = null; // the first Rub stroke after a Wish dissolves its Cards
-    charge = clamp01(charge + chargePerStroke * (1 + bonus));
-    lastStrokeAt = now;
+    charge = clamp01(charge + chargePerRubStroke * (1 + bonus));
+    lastRubStrokeAt = now;
     if (charge >= 1) startWish();
   }
 
@@ -183,27 +183,27 @@ export function createLampSession({
     cards =
       nextDraw.kind === 'cards'
         ? { kind: 'cards', cards: nextDraw.cards }
-        : { kind: 'face-down', count: t.cardsPerWish, reason: 'magic-unavailable' };
+        : { kind: 'face-down', count: tuning.cardsPerWish, reason: 'magic-unavailable' };
     nextDraw = null;
     requestNextCards();
   }
 
   function followRub(at: Point) {
-    const reach = distance(extreme, strokeStart);
-    if (distance(at, strokeStart) >= reach) {
+    const reach = distance(extreme, rubStrokeStart);
+    if (distance(at, rubStrokeStart) >= reach) {
       extreme = { x: at.x, y: at.y };
       return;
     }
-    if (distance(at, extreme) < t.reversalDistance) return;
-    // The drag has reversed: the leg from strokeStart to extreme is over.
-    if (reach >= t.minStrokeDistance) addStrokeCharge(reach, now - strokeStartedAt);
-    beginStroke(extreme, at);
+    if (distance(at, extreme) < tuning.reversalDistance) return;
+    // The drag has reversed: the leg from rubStrokeStart to extreme is over.
+    if (reach >= tuning.minRubStrokeDistance) addRubStrokeCharge(reach, now - rubStrokeStartedAt);
+    beginRubStroke(extreme, at);
   }
 
   function updateRubbing(pointer: LampPointer) {
     const rubbing = buttonDown && pointer.overLamp && !wishing && inspectedCard === null;
     if (rubbing && !isRubbing) {
-      beginStroke(pointer);
+      beginRubStroke(pointer);
       requestNextCards(); // in case nothing is ready or on its way
     }
     isRubbing = rubbing;
@@ -240,10 +240,10 @@ export function createLampSession({
     },
     tick(dt) {
       now += dt;
-      if (now - lastStrokeAt >= t.drainDelaySeconds) charge = clamp01(charge - t.drainPerSecond * dt);
-      if (wishing && !cards && now - wishStartedAt >= t.cardWaitSeconds) {
+      if (now - lastRubStrokeAt >= tuning.drainDelaySeconds) charge = clamp01(charge - tuning.drainPerSecond * dt);
+      if (wishing && !cards && now - wishStartedAt >= tuning.cardWaitSeconds) {
         // Not ready in time: rise face-down. A draw still on its way is kept for the next Wish.
-        cards = { kind: 'face-down', count: t.cardsPerWish, reason: 'not-ready' };
+        cards = { kind: 'face-down', count: tuning.cardsPerWish, reason: 'not-ready' };
       }
     },
     get state(): LampState {
