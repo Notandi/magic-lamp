@@ -1,0 +1,78 @@
+{
+  "object": "card",
+  "id": "e547e0fe-b274-4609-a596-d64c9dc46c1c",
+  "name": "Warstorm Surge // Warstorm Surge",
+  "lang": "tlh",
+  "released_at": "2026-11-13",
+  "uri": "https://api.scryfall.com/cards/e547e0fe-b274-4609-a596-d64c9dc46c1c",
+  "scryfall_uri": "https://scryfall.com/card/sld/2738/warstorm-surge-warstorm-surge?utm_source=api",
+  "layout": "reversible_card",
+  "highres_image": true,
+  "image_status": "highres_scan",
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Warstorm Surge",
+      "layout": "normal",
+      "mana_cost": "{5}{R}",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control enters, it deals damage equal to its power to any target.",
+      "colors": [
+        "R"
+      ],
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "normal": "https://cards.scryfall.io/normal/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "large": "https://cards.scryfall.io/large/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "png": "https://cards.scryfall.io/png/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.png?1793956048",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "thumb": "https://cards.scryfall.io/thumb/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "grid": "https://cards.scryfall.io/grid/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "display": "https://cards.scryfall.io/display/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "art": "https://cards.scryfall.io/art/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "crop": "https://cards.scryfall.io/crop/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "jpeg": "https://cards.scryfall.io/normal/front/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048"
+      }
+    },
+    {
+      "object": "card_face",
+      "name": "Warstorm Surge",
+      "layout": "normal",
+      "mana_cost": "{5}{R}",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control enters, it deals damage equal to its power to any target.",
+      "colors": [
+        "R"
+      ],
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "normal": "https://cards.scryfall.io/normal/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "large": "https://cards.scryfall.io/large/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "png": "https://cards.scryfall.io/png/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.png?1793956048",
+        "art_crop": "https://cards.scryfall.io/art_crop/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "border_crop": "https://cards.scryfall.io/border_crop/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048",
+        "thumb": "https://cards.scryfall.io/thumb/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "grid": "https://cards.scryfall.io/grid/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "display": "https://cards.scryfall.io/display/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "art": "https://cards.scryfall.io/art/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "crop": "https://cards.scryfall.io/crop/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.webp?1793956048",
+        "jpeg": "https://cards.scryfall.io/normal/back/e/5/e547e0fe-b274-4609-a596-d64c9dc46c1c.jpg?1793956048"
+      }
+    }
+  ],
+  "set": "sld",
+  "set_name": "Secret Lair Drop",
+  "set_type": "box",
+  "collector_number": "2738",
+  "rarity": "rare",
+  "artist": "",
+  "border_color": "black",
+  "frame": "2015",
+  "full_art": false,
+  "games": [
+    "paper"
+  ],
+  "digital": false,
+  "oversized": false
+}

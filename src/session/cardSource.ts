@@ -3,7 +3,7 @@
  *
  * "Give me N Cards" resolves to those Cards or to "magic unavailable". It never throws
  * or rejects; any failure is reported as `magic-unavailable` so the Wish still happens
- * with face-down Cards. The Scryfall implementation lives in #7.
+ * with face-down Cards. The real one is `createScryfallCardSource`.
  */
 
 /** A real Magic: The Gathering card, as the scene needs it. */
@@ -27,7 +27,7 @@ export interface CardSource {
   drawCards(count: number): Promise<CardDraw>;
 }
 
-/** Placeholder card source until Cards come from Scryfall (#7): every Wish is face-down. */
+/** A card source whose every Wish is face-down; the Lamp session's default. */
 export const faceDownCardSource: CardSource = {
   drawCards: () => Promise.resolve({ kind: 'magic-unavailable' }),
 };

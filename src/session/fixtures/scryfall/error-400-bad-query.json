@@ -1,0 +1,9 @@
+{
+    "object": "error",
+    "code": "bad_request",
+    "status": 400,
+    "warnings": [
+        "Invalid expression \u201cfoo:bar\u201d was ignored. Unknown keyword \u201cfoo\u201d."
+    ],
+    "details": "All of your terms were ignored."
+}
