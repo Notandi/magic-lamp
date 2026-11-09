@@ -124,8 +124,10 @@ export function createLampSession({
   let wishStartedAt = 0;
   let inspectedCard: number | null = null;
 
-  // The next Wish's Cards: requested up front and after each Wish takes its Cards, kept until
-  // a Wish takes them. At most one request is in flight.
+  // The next Wish's Cards: requested up front, after each Wish takes its Cards, and at a Rub
+  // start or Wish start when nothing is ready or on its way. Real Cards are kept until a Wish
+  // takes them; a "magic unavailable" draw only counts for a Wish already waiting on it.
+  // At most one request is in flight.
   let nextDraw: CardDraw | 'requested' | null = null;
 
   function requestNextCards() {
@@ -136,7 +138,10 @@ export function createLampSession({
       .catch((): CardDraw => ({ kind: 'magic-unavailable' }))
       .then((draw) => {
         nextDraw = draw;
-        attachPreparedCards();
+        if (wishing && !cards) attachPreparedCards();
+        // A failure with no Wish waiting is dropped, not kept: the next Rub start asks again,
+        // so a blip minutes ago doesn't turn a later Wish face-down.
+        else if (draw.kind === 'magic-unavailable') nextDraw = null;
       });
   }
 
@@ -169,6 +174,7 @@ export function createLampSession({
     isRubbing = false;
     cards = null;
     attachPreparedCards();
+    requestNextCards(); // in case nothing was ready or on its way
   }
 
   /** While a Wish is waiting for Cards, hands it the prepared Cards as soon as there are some. */

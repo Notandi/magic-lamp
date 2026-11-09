@@ -244,10 +244,49 @@ describe('Lamp session: Cards for the next Wish', () => {
   it('asks again right after a Wish takes face-down Cards for "magic unavailable"', async () => {
     const { source, requests } = fakeCardSource();
     const session = createLampSession({ cardSource: source });
+    rubUntilWish(session);
     requests[0].resolve({ kind: 'magic-unavailable' });
+    await flush();
+    expect(session.state.cards).toMatchObject({ kind: 'face-down', reason: 'magic-unavailable' });
+    expect(requests).toHaveLength(2);
+  });
+
+  it('asks for Cards when a Rub starts if none are ready or on their way', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    requests[0].resolve({ kind: 'magic-unavailable' });
+    await flush();
+    expect(requests).toHaveLength(1);
+
+    pressOnLamp(session);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('does not keep a "magic unavailable" draw from before the Rub: the next Wish gets fresh Cards', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    requests[0].resolve({ kind: 'magic-unavailable' }); // a blip long before the Wish
+    await flush();
+
+    pressOnLamp(session);
+    requests[1].resolve({ kind: 'cards', cards: fiveCards() });
+    await flush();
+    rubUntilWish(session);
+    expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
+  });
+
+  it('a Wish with no Cards ready or on their way asks for some', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    pressOnLamp(session);
+    requests[0].resolve({ kind: 'magic-unavailable' }); // fails mid-Rub, so nothing is on its way
     await flush();
     rubUntilWish(session);
     expect(requests).toHaveLength(2);
+
+    requests[1].resolve({ kind: 'cards', cards: fiveCards() });
+    await flush();
+    expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
   });
 });
 
@@ -267,10 +306,9 @@ describe('Lamp session: a Wish\'s Cards', () => {
   it('a card source that reports "magic unavailable" still produces a Wish with face-down Cards', async () => {
     const { source, requests } = fakeCardSource();
     const session = createLampSession({ cardSource: source });
-    pressOnLamp(session);
-    requests[0].resolve({ kind: 'magic-unavailable' });
-    await flush();
     rubUntilWish(session);
+    requests[0].resolve({ kind: 'magic-unavailable' }); // fails while the Wish waits
+    await flush();
     expect(session.state.wishId).toBe(1);
     expect(session.state.cards).toEqual({ kind: 'face-down', count: 5, reason: 'magic-unavailable' });
   });
@@ -288,9 +326,8 @@ describe('Lamp session: during and after a Wish', () => {
 
   it('moves to showing when the scene reports the Cards have settled', async () => {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush(); // the placeholder card source answers at once
     rubUntilWish(session);
+    await flush(); // the face-down card source answers at once
     session.cardsSettled();
     expect(session.state.phase).toBe('showing');
     expect(session.state.cards).not.toBeNull();
@@ -298,9 +335,8 @@ describe('Lamp session: during and after a Wish', () => {
 
   it('the first Rub stroke after the Cards settle clears them and adds Charge', async () => {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush();
     rubUntilWish(session);
+    await flush();
     session.cardsSettled();
     session.pointerUp();
 
@@ -393,9 +429,8 @@ describe('Lamp session: Inspecting a Card', () => {
   /** A session showing a settled Wish of five Cards. */
   async function showingCards() {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush();
     rubUntilWish(session);
+    await flush();
     session.cardsSettled();
     session.pointerUp();
     expect(session.state.phase).toBe('showing');
@@ -429,9 +464,8 @@ describe('Lamp session: Inspecting a Card', () => {
 
   it('clicking a Card while the Cards are still rising does not Inspect it', async () => {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush();
     rubUntilWish(session);
+    await flush();
     session.cardClicked(1);
     expect(session.state).toMatchObject({ phase: 'wishing', inspectedCard: null });
   });
