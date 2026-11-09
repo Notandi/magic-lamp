@@ -1,11 +1,14 @@
+import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
+import { createLampSession } from './session/lampSession';
 
 export function App() {
+  const session = useMemo(() => createLampSession(), []);
   return (
     <Canvas
       shadows="soft"
@@ -16,7 +19,7 @@ export function App() {
       <color attach="background" args={[0x0b0710]} />
       <CameraRig />
       <Lighting />
-      <Lamp />
+      <Lamp session={session} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
         <meshStandardMaterial color={0x140c1e} roughness={0.9} />
