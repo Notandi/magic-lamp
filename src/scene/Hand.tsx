@@ -64,7 +64,9 @@ export function Hand() {
     const canvas = gl.domElement;
     const previousCursor = canvas.style.cursor;
     canvas.style.cursor = 'none';
-    const down = () => (pressed.current = true);
+    const down = (e: PointerEvent) => {
+      if (e.button === 0) pressed.current = true;
+    };
     const up = () => (pressed.current = false);
     canvas.addEventListener('pointerdown', down);
     window.addEventListener('pointerup', up);
