@@ -1,14 +1,18 @@
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
+import { Credits } from './credits/Credits';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
 import { Hand } from './scene/Hand';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
+import { createLampSession } from './session/lampSession';
 
 export function App() {
+  const session = useMemo(() => createLampSession(), []);
   return (
+    <>
     <Canvas
       shadows="soft"
       dpr={[1, 2]}
@@ -18,7 +22,7 @@ export function App() {
       <color attach="background" args={[0x0b0710]} />
       <CameraRig />
       <Lighting />
-      <Lamp />
+      <Lamp session={session} />
       <Suspense fallback={null}>
         <Hand />
       </Suspense>
@@ -27,5 +31,7 @@ export function App() {
         <meshStandardMaterial color={0x140c1e} roughness={0.9} />
       </mesh>
     </Canvas>
+    <Credits />
+    </>
   );
 }

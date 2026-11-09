@@ -3,17 +3,36 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { buildLampGeometry } from './lampGeometry';
 import { gemGlow } from './flicker';
+import type { LampSession } from '../session/lampSession';
+import { useLampRubInput } from './useLampRubInput';
 
 /** Name of the Lamp's root object, so other scene parts (like the Hand) can raycast it. */
 export const LAMP_OBJECT_NAME = 'lamp';
 
-/** The code-built brass genie Lamp, ported from prototypes/code-lamp.html. */
-export function Lamp() {
+const LAMP_POSITION = new THREE.Vector3(-0.3, 0, 0);
+
+/** Warm brass glow colour that rises with Charge. */
+const CHARGE_GLOW = new THREE.Color(0xff8a2a);
+
+/** How far (world units / radians) the Lamp shakes at full Charge. */
+const MAX_TREMBLE = 0.035;
+
+/**
+ * The code-built brass genie Lamp, ported from prototypes/code-lamp.html.
+ * It sends the player's Rubs into the Lamp session and glows and trembles with Charge.
+ */
+export function Lamp({ session }: { session: LampSession }) {
+  const root = useRef<THREE.Group>(null);
+  const glowLight = useRef<THREE.PointLight>(null);
+  useLampRubInput(root, session);
+
   const geo = useMemo(buildLampGeometry, []);
   const brass = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
         color: 0xd4a03a,
+        emissive: CHARGE_GLOW,
+        emissiveIntensity: 0,
         metalness: 1,
         roughness: 0.22,
         clearcoat: 0.6,
@@ -29,12 +48,30 @@ export function Lamp() {
   }, [brass]);
   const gemMaterial = useRef<THREE.MeshPhysicalMaterial>(null);
 
-  useFrame(({ clock }) => {
-    if (gemMaterial.current) gemMaterial.current.emissiveIntensity = gemGlow(clock.getElapsedTime());
+  useFrame(({ clock }, dt) => {
+    session.tick(dt);
+    const { charge } = session.state;
+    const t = clock.getElapsedTime();
+
+    if (gemMaterial.current) gemMaterial.current.emissiveIntensity = gemGlow(t) + charge * 4;
+    brass.emissiveIntensity = charge * 0.35;
+    darkBrass.emissiveIntensity = charge * 0.25;
+    if (glowLight.current) glowLight.current.intensity = charge * charge * 30;
+
+    const shake = MAX_TREMBLE * Math.pow(charge, 1.5);
+    if (root.current) {
+      root.current.position.set(
+        LAMP_POSITION.x + shake * Math.sin(t * 53) * Math.sin(t * 7.3),
+        LAMP_POSITION.y + shake * 0.5 * Math.sin(t * 61 + 1.1),
+        LAMP_POSITION.z + shake * Math.sin(t * 47 + 2.3) * Math.sin(t * 5.1),
+      );
+      root.current.rotation.set(shake * 0.6 * Math.sin(t * 43 + 0.4), 0, shake * Math.sin(t * 57 + 0.9));
+    }
   });
 
   return (
-    <group name={LAMP_OBJECT_NAME} position={[-0.3, 0, 0]}>
+    <group ref={root} name={LAMP_OBJECT_NAME} position={LAMP_POSITION}>
+      <pointLight ref={glowLight} color={0xffa040} intensity={0} distance={6} decay={2} position={[0, 1.2, 0]} />
       <mesh geometry={geo.foot} material={darkBrass} castShadow receiveShadow />
       <mesh geometry={geo.body} material={brass} scale={[1.35, 1, 0.85]} castShadow receiveShadow />
       <mesh
