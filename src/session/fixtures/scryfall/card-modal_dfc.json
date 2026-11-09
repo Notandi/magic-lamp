@@ -1,0 +1,83 @@
+{
+  "object": "card",
+  "id": "782ca27f-9f18-476c-b582-89c06fb2e322",
+  "oracle_id": "81b61770-2ed5-4a50-84d0-97790002fc5a",
+  "name": "Song-Mad Treachery // Song-Mad Ruins",
+  "lang": "en",
+  "released_at": "2020-09-25",
+  "uri": "https://api.scryfall.com/cards/782ca27f-9f18-476c-b582-89c06fb2e322",
+  "scryfall_uri": "https://scryfall.com/card/znr/165/song-mad-treachery-song-mad-ruins?utm_source=api",
+  "layout": "modal_dfc",
+  "highres_image": true,
+  "image_status": "highres_scan",
+  "cmc": 5.0,
+  "type_line": "Sorcery // Land",
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Song-Mad Treachery",
+      "mana_cost": "{3}{R}{R}",
+      "type_line": "Sorcery",
+      "oracle_text": "Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.",
+      "colors": [
+        "R"
+      ],
+      "artist": "Zoltan Boros",
+      "illustration_id": "66b8bd7b-4b3b-4415-b6a0-56137a0e76ce",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "normal": "https://cards.scryfall.io/normal/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "large": "https://cards.scryfall.io/large/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "png": "https://cards.scryfall.io/png/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.png?1783929353",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "thumb": "https://cards.scryfall.io/thumb/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "grid": "https://cards.scryfall.io/grid/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "display": "https://cards.scryfall.io/display/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "art": "https://cards.scryfall.io/art/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "crop": "https://cards.scryfall.io/crop/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "jpeg": "https://cards.scryfall.io/normal/front/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353"
+      }
+    },
+    {
+      "object": "card_face",
+      "name": "Song-Mad Ruins",
+      "mana_cost": "",
+      "type_line": "Land",
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.",
+      "colors": [],
+      "artist": "Zoltan Boros",
+      "illustration_id": "f0fc6f1c-4373-4436-ad01-b80eae28b68c",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "normal": "https://cards.scryfall.io/normal/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "large": "https://cards.scryfall.io/large/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "png": "https://cards.scryfall.io/png/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.png?1783929353",
+        "art_crop": "https://cards.scryfall.io/art_crop/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "border_crop": "https://cards.scryfall.io/border_crop/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353",
+        "thumb": "https://cards.scryfall.io/thumb/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "grid": "https://cards.scryfall.io/grid/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "display": "https://cards.scryfall.io/display/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "art": "https://cards.scryfall.io/art/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "crop": "https://cards.scryfall.io/crop/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.webp?1783929353",
+        "jpeg": "https://cards.scryfall.io/normal/back/7/8/782ca27f-9f18-476c-b582-89c06fb2e322.jpg?1783929353"
+      }
+    }
+  ],
+  "set": "znr",
+  "set_name": "Zendikar Rising",
+  "set_type": "expansion",
+  "collector_number": "165",
+  "rarity": "uncommon",
+  "artist": "Zoltan Boros",
+  "border_color": "black",
+  "frame": "2015",
+  "full_art": false,
+  "games": [
+    "arena",
+    "paper",
+    "mtgo"
+  ],
+  "digital": false,
+  "oversized": false
+}

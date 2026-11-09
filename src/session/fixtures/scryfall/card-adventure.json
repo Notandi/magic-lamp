@@ -1,0 +1,73 @@
+{
+  "object": "card",
+  "id": "32158458-42eb-41bc-a15a-11af28463eb0",
+  "oracle_id": "db6fbdc9-1c45-416f-a08e-2082f65adb65",
+  "name": "Animating Faerie // Bring to Life",
+  "lang": "en",
+  "released_at": "2019-10-04",
+  "uri": "https://api.scryfall.com/cards/32158458-42eb-41bc-a15a-11af28463eb0",
+  "scryfall_uri": "https://scryfall.com/card/eld/38/animating-faerie-bring-to-life?utm_source=api",
+  "layout": "adventure",
+  "highres_image": true,
+  "image_status": "highres_scan",
+  "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.jpg?1783932662",
+    "normal": "https://cards.scryfall.io/normal/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.jpg?1783932662",
+    "large": "https://cards.scryfall.io/large/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.jpg?1783932662",
+    "png": "https://cards.scryfall.io/png/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.png?1783932662",
+    "art_crop": "https://cards.scryfall.io/art_crop/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.jpg?1783932662",
+    "border_crop": "https://cards.scryfall.io/border_crop/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.jpg?1783932662",
+    "thumb": "https://cards.scryfall.io/thumb/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.webp?1783932662",
+    "grid": "https://cards.scryfall.io/grid/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.webp?1783932662",
+    "display": "https://cards.scryfall.io/display/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.webp?1783932662",
+    "art": "https://cards.scryfall.io/art/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.webp?1783932662",
+    "crop": "https://cards.scryfall.io/crop/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.webp?1783932662",
+    "jpeg": "https://cards.scryfall.io/normal/front/3/2/32158458-42eb-41bc-a15a-11af28463eb0.jpg?1783932662"
+  },
+  "mana_cost": "{2}{U} // {2}{U}",
+  "cmc": 3.0,
+  "type_line": "Creature — Faerie // Sorcery — Adventure",
+  "power": "2",
+  "toughness": "2",
+  "colors": [
+    "U"
+  ],
+  "card_faces": [
+    {
+      "object": "card_face",
+      "name": "Animating Faerie",
+      "mana_cost": "{2}{U}",
+      "type_line": "Creature — Faerie",
+      "oracle_text": "Flying",
+      "power": "2",
+      "toughness": "2",
+      "artist": "Joseph Meehan",
+      "illustration_id": "6c97bfb8-f512-4e31-ac9c-a3f969d40a56"
+    },
+    {
+      "object": "card_face",
+      "name": "Bring to Life",
+      "mana_cost": "{2}{U}",
+      "type_line": "Sorcery — Adventure",
+      "oracle_text": "Target noncreature artifact you control becomes a 0/0 artifact creature. Put four +1/+1 counters on it.",
+      "artist": "Joseph Meehan"
+    }
+  ],
+  "set": "eld",
+  "set_name": "Throne of Eldraine",
+  "set_type": "expansion",
+  "collector_number": "38",
+  "rarity": "uncommon",
+  "artist": "Joseph Meehan",
+  "card_back_id": "0aeebaf5-8c7d-4636-9e82-8c27447861f7",
+  "border_color": "black",
+  "frame": "2015",
+  "full_art": false,
+  "games": [
+    "arena",
+    "paper",
+    "mtgo"
+  ],
+  "digital": false,
+  "oversized": false
+}
