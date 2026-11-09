@@ -32,7 +32,7 @@ export const CARD_PLAY = {
   inspectGlow: 0.55,
 } as const;
 
-const smoothstep = (k: number) => k * k * (3 - 2 * k);
+const smoothstep = (x: number) => x * x * (3 - 2 * x);
 
 interface Drag {
   pointerId: number;
@@ -49,19 +49,17 @@ const local = new THREE.Vector3();
  *
  * `handlers` go on the Card's outer group, `flipper` on an inner group holding its meshes.
  * Each frame, after placing the Card in the arc, call `pose` to tilt it toward the Hand
- * and blend it toward its Inspect pose in front of the camera.
+ * and blend it toward its Inspect pose in front of the camera; it returns the glow the
+ * Card's faces should have, so they're readable while Inspected.
  */
 export function useCardPlay({
   session,
   index,
   card,
-  faces,
 }: {
   session: LampSession;
   index: number;
   card: RefObject<THREE.Group | null>;
-  /** Face materials, given a glow while the Card is Inspected. */
-  faces: THREE.MeshStandardMaterial[];
 }) {
   const flipper = useRef<THREE.Group>(null);
   const play = useRef({
@@ -75,25 +73,25 @@ export function useCardPlay({
   });
 
   const handlers = useMemo(() => {
-    const s = play.current;
-    const canHover = () => s.settled && session.canHoverCards();
-    const canFlip = () => s.settled && session.canFlipCard(index);
+    const state = play.current;
+    const canHover = () => state.settled && session.canHoverCards();
+    const canFlip = () => state.settled && session.canFlipCard(index);
 
     const trackHover = (e: ThreeEvent<PointerEvent>) => {
-      const g = card.current;
-      if (!g || !canHover() || !hoversCards(e.nativeEvent)) {
-        s.hover = null;
+      const cardGroup = card.current;
+      if (!cardGroup || !canHover() || !hoversCards(e.nativeEvent)) {
+        state.hover = null;
         return;
       }
-      g.worldToLocal(local.copy(e.point));
-      s.hover = {
+      cardGroup.worldToLocal(local.copy(e.point));
+      state.hover = {
         u: THREE.MathUtils.clamp(local.x / (CARD_SIZE.width / 2), -1, 1),
         v: THREE.MathUtils.clamp(local.y / (CARD_SIZE.height / 2), -1, 1),
       };
     };
     const endDrag = (e: ThreeEvent<PointerEvent>) => {
-      if (!s.drag || s.drag.pointerId !== e.pointerId) return;
-      s.drag = null;
+      if (!state.drag || state.drag.pointerId !== e.pointerId) return;
+      state.drag = null;
       (e.target as Element).releasePointerCapture?.(e.pointerId);
     };
 
@@ -104,19 +102,19 @@ export function useCardPlay({
       },
       onPointerMove(e: ThreeEvent<PointerEvent>) {
         e.stopPropagation();
-        if (s.drag?.pointerId === e.pointerId) {
-          const dx = e.nativeEvent.clientX - s.drag.startX;
-          s.flip = s.drag.startFlip + (dx / CARD_PLAY.dragPixelsPerHalfTurn) * Math.PI;
+        if (state.drag?.pointerId === e.pointerId) {
+          const dx = e.nativeEvent.clientX - state.drag.startX;
+          state.flip = state.drag.startFlip + (dx / CARD_PLAY.dragPixelsPerHalfTurn) * Math.PI;
         } else trackHover(e);
       },
       onPointerOut() {
-        s.hover = null;
+        state.hover = null;
       },
       onPointerDown(e: ThreeEvent<PointerEvent>) {
         e.stopPropagation();
         if (!pressesWithHand(e.nativeEvent) || !canFlip()) return;
-        s.drag = { pointerId: e.pointerId, startX: e.nativeEvent.clientX, startFlip: s.flip };
-        s.hover = null;
+        state.drag = { pointerId: e.pointerId, startX: e.nativeEvent.clientX, startFlip: state.flip };
+        state.hover = null;
         (e.target as Element).setPointerCapture?.(e.pointerId);
       },
       onPointerUp: endDrag,
@@ -128,44 +126,38 @@ export function useCardPlay({
     };
   }, [session, index, card]);
 
-  function pose(camera: THREE.Camera, dt: number, settled: boolean) {
-    const g = card.current;
-    const s = play.current;
-    if (!g) return;
-    s.settled = settled;
+  /** Poses the Card for this frame; returns how strongly its faces should glow (see `CARD_PLAY.inspectGlow`). */
+  function pose(camera: THREE.Camera, dt: number, settled: boolean): number {
+    const cardGroup = card.current;
+    const state = play.current;
+    if (!cardGroup) return 0;
+    state.settled = settled;
 
     // Hover: tilt the Card's face toward the Hand.
-    const hover = settled && session.canHoverCards() ? s.hover : null;
-    s.tiltY = damp(s.tiltY, hover ? hover.u * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
-    s.tiltX = damp(s.tiltX, hover ? -hover.v * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
+    const hover = settled && session.canHoverCards() ? state.hover : null;
+    state.tiltY = damp(state.tiltY, hover ? hover.u * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
+    state.tiltX = damp(state.tiltX, hover ? -hover.v * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
 
     // Flip: follow the drag, then settle onto whichever side is nearer.
-    if (!s.drag) s.flip = damp(s.flip, Math.round(s.flip / Math.PI) * Math.PI, CARD_PLAY.flipSettleRate, dt);
-    if (flipper.current) flipper.current.rotation.y = s.flip;
+    if (!state.drag) state.flip = damp(state.flip, Math.round(state.flip / Math.PI) * Math.PI, CARD_PLAY.flipSettleRate, dt);
+    if (flipper.current) flipper.current.rotation.y = state.flip;
 
     // Inspect: fly up close to the camera, facing it.
     const inspected = settled && session.isInspected(index);
-    s.inspect = damp(s.inspect, inspected ? 1 : 0, CARD_PLAY.inspectRate, dt);
-    if (s.inspect < 1e-3) s.inspect = 0;
-    const k = smoothstep(s.inspect);
-    if (k > 0) {
+    state.inspect = damp(state.inspect, inspected ? 1 : 0, CARD_PLAY.inspectRate, dt);
+    if (state.inspect < 1e-3) state.inspect = 0;
+    const inspectBlend = smoothstep(state.inspect);
+    if (inspectBlend > 0) {
       camera.getWorldDirection(forward);
       inspectPosition.copy(camera.position).addScaledVector(forward, CARD_PLAY.inspectDepth);
-      g.position.lerp(inspectPosition, k);
-      g.quaternion.slerp(camera.quaternion, k);
-      g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x, inspectScale(camera), k));
+      cardGroup.position.lerp(inspectPosition, inspectBlend);
+      cardGroup.quaternion.slerp(camera.quaternion, inspectBlend);
+      cardGroup.scale.setScalar(THREE.MathUtils.lerp(cardGroup.scale.x, inspectScale(camera), inspectBlend));
     }
-    g.rotateX(s.tiltX);
-    g.rotateY(s.tiltY);
+    cardGroup.rotateX(state.tiltX);
+    cardGroup.rotateY(state.tiltY);
 
-    for (const m of faces) {
-      if (m.emissiveMap !== m.map) {
-        m.emissiveMap = m.map;
-        m.emissive.set(0xffffff);
-        m.needsUpdate = true;
-      }
-      m.emissiveIntensity = CARD_PLAY.inspectGlow * k;
-    }
+    return CARD_PLAY.inspectGlow * inspectBlend;
   }
 
   return { handlers, flipper, pose };

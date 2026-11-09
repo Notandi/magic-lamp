@@ -77,8 +77,8 @@ export function Cards({
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
     const { wishId, cards } = session.state;
-    const c = clock.current;
-    c.t += dt;
+    const animation = clock.current;
+    animation.t += dt;
 
     if (cards && wishId !== shownId.current) {
       // A new Wish's Cards: they replace whatever was on show.
@@ -90,12 +90,12 @@ export function Cards({
     if (!shown) return;
 
     const count = shown.faces.length;
-    if (c.stage === 'rising' && c.t >= (count - 1) * CARD_ANIMATION.riseStagger + CARD_ANIMATION.riseSeconds) {
+    if (animation.stage === 'rising' && animation.t >= (count - 1) * CARD_ANIMATION.riseStagger + CARD_ANIMATION.riseSeconds) {
       clock.current = { stage: 'settled', t: 0 };
       session.cardsSettled();
-    } else if (c.stage !== 'dissolving' && !cards) {
+    } else if (animation.stage !== 'dissolving' && !cards) {
       clock.current = { stage: 'dissolving', t: 0 };
-    } else if (c.stage === 'dissolving' && c.t >= CARD_ANIMATION.dissolveSeconds) {
+    } else if (animation.stage === 'dissolving' && animation.t >= CARD_ANIMATION.dissolveSeconds) {
       setShown(null);
     }
   });
@@ -176,8 +176,17 @@ function CardSlab({
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 8;
     }
+    // Each face glows with its own image while Inspected, so its text is readable in the dim room.
     const make = (map: THREE.Texture) =>
-      new THREE.MeshStandardMaterial({ map, roughness: 0.45, metalness: 0, transparent: true });
+      new THREE.MeshStandardMaterial({
+        map,
+        emissiveMap: map,
+        emissive: 0xffffff,
+        emissiveIntensity: 0,
+        roughness: 0.45,
+        metalness: 0,
+        transparent: true,
+      });
     return { front: make(front), back: make(back), edge: edgeMaterial.clone() };
   }, [front, back]);
   useEffect(
@@ -189,37 +198,41 @@ function CardSlab({
     [materials],
   );
 
-  const play = useCardPlay({ session, index, card: group, faces: [materials.front, materials.back] });
+  const play = useCardPlay({ session, index, card: group });
 
   const start = useMemo(() => new THREE.Vector3(origin[0], origin[1] + CARD_ANIMATION.columnHeight, origin[2]), [origin]);
   const end = useMemo(() => new THREE.Vector3(...slot.position), [slot]);
 
   useFrame(({ camera }, delta) => {
-    const g = group.current;
-    const c = clock.current;
-    if (!g || !c) return;
+    const cardGroup = group.current;
+    const animation = clock.current;
+    if (!cardGroup || !animation) return;
 
-    let k = 1; // 0 in the column → 1 settled in the arc
+    let rise = 1; // 0 in the column → 1 settled in the arc
     let fade = 1;
-    if (c.stage === 'rising') k = clamp01((c.t - index * CARD_ANIMATION.riseStagger) / CARD_ANIMATION.riseSeconds);
-    if (c.stage === 'dissolving') fade = 1 - clamp01(c.t / CARD_ANIMATION.dissolveSeconds);
+    if (animation.stage === 'rising')
+      rise = clamp01((animation.t - index * CARD_ANIMATION.riseStagger) / CARD_ANIMATION.riseSeconds);
+    if (animation.stage === 'dissolving') fade = 1 - clamp01(animation.t / CARD_ANIMATION.dissolveSeconds);
 
-    const e = ease(k);
-    g.position.lerpVectors(start, end, e);
+    const eased = ease(rise);
+    cardGroup.position.lerpVectors(start, end, eased);
     // Rise in a slight arc: up the column first, then out to the slot.
-    g.position.y += Math.sin(Math.PI * e) * 0.35;
-    g.lookAt(camera.position);
-    g.rotateZ(slot.tilt * e);
-    g.rotateY((1 - e) * Math.PI * 2 * CARD_ANIMATION.riseSpins);
-    const scale = (0.15 + 0.85 * e) * (0.4 + 0.6 * fade);
-    g.scale.setScalar(scale);
-    g.visible = k > 0 && fade > 0;
-    play.pose(camera, Math.min(delta, 0.1), c.stage === 'settled');
+    cardGroup.position.y += Math.sin(Math.PI * eased) * 0.35;
+    cardGroup.lookAt(camera.position);
+    cardGroup.rotateZ(slot.tilt * eased);
+    cardGroup.rotateY((1 - eased) * Math.PI * 2 * CARD_ANIMATION.riseSpins);
+    const scale = (0.15 + 0.85 * eased) * (0.4 + 0.6 * fade);
+    cardGroup.scale.setScalar(scale);
+    cardGroup.visible = rise > 0 && fade > 0;
+    const glow = play.pose(camera, Math.min(delta, 0.1), animation.stage === 'settled');
+    materials.front.emissiveIntensity = glow;
+    materials.back.emissiveIntensity = glow;
 
-    for (const m of [materials.front, materials.back, materials.edge]) m.opacity = fade * Math.min(1, k * 4);
+    for (const m of [materials.front, materials.back, materials.edge]) m.opacity = fade * Math.min(1, rise * 4);
 
-    if (c.stage === 'dissolving' && fade > 0.2) {
-      dissolve.bursts.push({ x: g.position.x, y: g.position.y, z: g.position.z, count: CARD_ANIMATION.dissolvePuffsPerFrame });
+    if (animation.stage === 'dissolving' && fade > 0.2) {
+      const { x, y, z } = cardGroup.position;
+      dissolve.bursts.push({ x, y, z, count: CARD_ANIMATION.dissolvePuffsPerFrame });
     }
   });
 
