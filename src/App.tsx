@@ -8,6 +8,7 @@ import { AdaptiveQuality } from './scene/AdaptiveQuality';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
 import { Hand } from './scene/Hand';
+import { HandInputProvider } from './scene/HandInputProvider';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
 import { SPOUT_TIP } from './scene/lampGeometry';
@@ -47,10 +48,12 @@ export function App() {
       <color attach="background" args={[0x0b0710]} />
       <CameraRig />
       <Lighting />
-      <Lamp session={session} />
-      <Suspense fallback={null}>
-        <Hand />
-      </Suspense>
+      <HandInputProvider>
+        <Lamp session={session} />
+        <Suspense fallback={null}>
+          <Hand />
+        </Suspense>
+      </HandInputProvider>
       <AdaptiveQuality>
         {({ smokeBudget, bloomResolutionScale }) => (
           <>

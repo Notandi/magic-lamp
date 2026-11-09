@@ -85,7 +85,7 @@ describe('Lamp session: Rubbing builds Charge', () => {
     expect(session.state.charge).toBe(0);
   });
 
-  it('tiny back-and-forth jiggles shorter than the minimum stroke add no Charge', () => {
+  it('tiny back-and-forth jiggles shorter than the minimum Rub stroke add no Charge', () => {
     const session = createLampSession();
     pressOnLamp(session);
     rub(session, 30, 10, 0.05);
@@ -122,7 +122,7 @@ describe('Lamp session: Rubbing builds Charge', () => {
     expect(session.state.isRubbing).toBe(false);
   });
 
-  it('a stroke dragged off the Lamp and back does not count', () => {
+  it('a Rub stroke dragged off the Lamp and back does not count', () => {
     const session = createLampSession();
     pressOnLamp(session);
     dragTo(session, 0, 100, 1 / 3);
@@ -134,7 +134,7 @@ describe('Lamp session: Rubbing builds Charge', () => {
   it('Charge builds at a rate that fills it in about 6 s of steady Rubbing', () => {
     const halfway = createLampSession();
     pressOnLamp(halfway);
-    rub(halfway, 9); // 3 s at 3 strokes per second
+    rub(halfway, 9); // 3 s at 3 Rub strokes per second
     expect(halfway.state.charge).toBeGreaterThan(0.35);
     expect(halfway.state.charge).toBeLessThan(0.65);
 
@@ -206,7 +206,7 @@ describe('Lamp session: the Wish', () => {
     const session = createLampSession();
     expect(session.state.wishId).toBe(0);
     pressOnLamp(session);
-    rub(session, 19); // 18 strokes fill Charge; the 19th leg's reversal ends the 18th
+    rub(session, 19); // 18 Rub strokes fill Charge; the 19th leg's reversal ends the 18th
     expect(session.state.phase).toBe('wishing');
     expect(session.state.wishId).toBe(1);
     expect(session.state.charge).toBe(0);
@@ -244,10 +244,49 @@ describe('Lamp session: Cards for the next Wish', () => {
   it('asks again right after a Wish takes face-down Cards for "magic unavailable"', async () => {
     const { source, requests } = fakeCardSource();
     const session = createLampSession({ cardSource: source });
+    rubUntilWish(session);
     requests[0].resolve({ kind: 'magic-unavailable' });
+    await flush();
+    expect(session.state.cards).toMatchObject({ kind: 'face-down', reason: 'magic-unavailable' });
+    expect(requests).toHaveLength(2);
+  });
+
+  it('asks for Cards when a Rub starts if none are ready or on their way', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    requests[0].resolve({ kind: 'magic-unavailable' });
+    await flush();
+    expect(requests).toHaveLength(1);
+
+    pressOnLamp(session);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('does not keep a "magic unavailable" draw from before the Rub: the next Wish gets fresh Cards', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    requests[0].resolve({ kind: 'magic-unavailable' }); // a blip long before the Wish
+    await flush();
+
+    pressOnLamp(session);
+    requests[1].resolve({ kind: 'cards', cards: fiveCards() });
+    await flush();
+    rubUntilWish(session);
+    expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
+  });
+
+  it('a Wish with no Cards ready or on their way asks for some', async () => {
+    const { source, requests } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    pressOnLamp(session);
+    requests[0].resolve({ kind: 'magic-unavailable' }); // fails mid-Rub, so nothing is on its way
     await flush();
     rubUntilWish(session);
     expect(requests).toHaveLength(2);
+
+    requests[1].resolve({ kind: 'cards', cards: fiveCards() });
+    await flush();
+    expect(session.state.cards).toEqual({ kind: 'cards', cards: fiveCards() });
   });
 });
 
@@ -267,10 +306,9 @@ describe('Lamp session: a Wish\'s Cards', () => {
   it('a card source that reports "magic unavailable" still produces a Wish with face-down Cards', async () => {
     const { source, requests } = fakeCardSource();
     const session = createLampSession({ cardSource: source });
-    pressOnLamp(session);
-    requests[0].resolve({ kind: 'magic-unavailable' });
-    await flush();
     rubUntilWish(session);
+    requests[0].resolve({ kind: 'magic-unavailable' }); // fails while the Wish waits
+    await flush();
     expect(session.state.wishId).toBe(1);
     expect(session.state.cards).toEqual({ kind: 'face-down', count: 5, reason: 'magic-unavailable' });
   });
@@ -288,9 +326,8 @@ describe('Lamp session: during and after a Wish', () => {
 
   it('moves to showing when the scene reports the Cards have settled', async () => {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush(); // the placeholder card source answers at once
     rubUntilWish(session);
+    await flush(); // the face-down card source answers at once
     session.cardsSettled();
     expect(session.state.phase).toBe('showing');
     expect(session.state.cards).not.toBeNull();
@@ -298,9 +335,8 @@ describe('Lamp session: during and after a Wish', () => {
 
   it('the first Rub stroke after the Cards settle clears them and adds Charge', async () => {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush();
     rubUntilWish(session);
+    await flush();
     session.cardsSettled();
     session.pointerUp();
 
@@ -309,7 +345,7 @@ describe('Lamp session: during and after a Wish', () => {
     expect(session.state.phase).toBe('showing');
     expect(session.state.cards).not.toBeNull();
 
-    dragTo(session, 100, 0, 1 / 3); // the reversal counts the stroke
+    dragTo(session, 100, 0, 1 / 3); // the reversal counts the Rub stroke
     expect(session.state.phase).toBe('rubbing');
     expect(session.state.cards).toBeNull();
     expect(session.state.charge).toBeGreaterThan(0);
@@ -393,9 +429,8 @@ describe('Lamp session: Inspecting a Card', () => {
   /** A session showing a settled Wish of five Cards. */
   async function showingCards() {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush();
     rubUntilWish(session);
+    await flush();
     session.cardsSettled();
     session.pointerUp();
     expect(session.state.phase).toBe('showing');
@@ -429,9 +464,8 @@ describe('Lamp session: Inspecting a Card', () => {
 
   it('clicking a Card while the Cards are still rising does not Inspect it', async () => {
     const session = createLampSession();
-    pressOnLamp(session);
-    await flush();
     rubUntilWish(session);
+    await flush();
     session.cardClicked(1);
     expect(session.state).toMatchObject({ phase: 'wishing', inspectedCard: null });
   });
@@ -444,5 +478,44 @@ describe('Lamp session: Inspecting a Card', () => {
     rub(session, 12);
     expect(session.state).toMatchObject({ phase: 'inspecting', inspectedCard: 3, charge: 0, isRubbing: false });
     expect(session.state.cards).toBe(cards);
+  });
+});
+
+describe('Lamp session: what the Cards respond to', () => {
+  it('no Card can be hovered or flipped while none are out or they are still rising', async () => {
+    const session = createLampSession();
+    expect(session.canHoverCards()).toBe(false);
+    expect(session.canFlipCard(0)).toBe(false);
+    expect(session.isWishing()).toBe(false);
+
+    rubUntilWish(session);
+    await flush();
+    expect(session.isWishing()).toBe(true);
+    expect(session.canHoverCards()).toBe(false);
+    expect(session.canFlipCard(0)).toBe(false);
+  });
+
+  it('settled Cards can all be hovered and flipped', async () => {
+    const session = createLampSession();
+    rubUntilWish(session);
+    await flush();
+    session.cardsSettled();
+    expect(session.isWishing()).toBe(false);
+    expect(session.canHoverCards()).toBe(true);
+    expect([0, 1, 2, 3, 4].map((i) => session.canFlipCard(i))).toEqual([true, true, true, true, true]);
+    expect(session.isInspected(2)).toBe(false);
+  });
+
+  it('while a Card is Inspected, only it can be flipped, and no Card hovered', async () => {
+    const session = createLampSession();
+    rubUntilWish(session);
+    await flush();
+    session.cardsSettled();
+    session.cardClicked(2);
+    expect(session.isInspected(2)).toBe(true);
+    expect(session.isInspected(3)).toBe(false);
+    expect(session.canHoverCards()).toBe(false);
+    expect(session.canFlipCard(2)).toBe(true);
+    expect(session.canFlipCard(3)).toBe(false);
   });
 });

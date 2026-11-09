@@ -12,9 +12,13 @@ const RANDOM_CARD_URL = 'https://api.scryfall.com/cards/random';
 
 /**
  * Search query for a random Card: everything except tokens, double-faced tokens, emblems and
- * art-series cards. Joke (Un-set) cards stay in. Naming any `layout:` term also reveals the
- * "extras" Scryfall hides by default, so those are excluded explicitly: deck-indicator
- * "front cards" and the oversized planes, schemes and vanguards.
+ * art-series cards (the GLOSSARY's "not Cards"). Joke (Un-set) cards stay in.
+ *
+ * Why the last four terms too: Scryfall hides "extras" from searches by default, but naming any
+ * `layout:` term in the query turns that default off, so excluding just the four above would let
+ * the extras in. Those are deck-indicator "front cards" and the oversized Planechase planes,
+ * Archenemy schemes and Vanguard cards: not normal game cards, and odd-shaped next to the rest
+ * of a Wish. They are excluded explicitly to keep the random pool what it was before.
  */
 export const RANDOM_CARD_QUERY = [
   'token',
@@ -107,10 +111,21 @@ function toCard(card: ScryfallCard, cardBackUrl: string): Card {
   };
 }
 
+/** Busy (429) or server trouble (5xx): the same request may well work a moment later. */
+const isTransientStatus = (status: number) => status === 429 || status >= 500;
+
+/** A failure that asking again won't fix (a 4xx other than 429, or an unreadable card), so it isn't retried. */
+class FinalAnswer extends Error {
+  constructor(cause: unknown) {
+    super('Scryfall gave an answer a retry would not change', { cause });
+  }
+}
+
 /**
  * Draws Cards from Scryfall, one random-card request per Card, sent one at a time through the
- * request queue. A request that fails, times out, or answers with anything but 200 is retried
- * once; if the retry fails too, the whole draw is "magic unavailable". Never rejects.
+ * request queue. A request that hits a network error, times out, or answers 429 or 5xx is
+ * retried once; any other failure (e.g. a 400 for a bad query) is not. If a Card still can't
+ * be drawn, the whole draw is "magic unavailable". Never rejects.
  */
 export function createScryfallCardSource({
   fetch = globalThis.fetch.bind(globalThis),
@@ -124,15 +139,27 @@ export function createScryfallCardSource({
     const timeout = new AbortController();
     const timer = setTimeout(() => timeout.abort(new DOMException('Scryfall took too long', 'TimeoutError')), timeoutMs);
     try {
+      // A network error or timeout rejects here, and is worth one retry.
       const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: timeout.signal });
-      if (response.status !== 200) throw new Error(`Scryfall answered ${response.status}`);
-      return toCard((await response.json()) as ScryfallCard, cardBackUrl);
+      if (response.status !== 200) {
+        const error = new Error(`Scryfall answered ${response.status}`);
+        throw isTransientStatus(response.status) ? error : new FinalAnswer(error);
+      }
+      try {
+        return toCard((await response.json()) as ScryfallCard, cardBackUrl);
+      } catch (error) {
+        throw new FinalAnswer(error);
+      }
     } finally {
       clearTimeout(timer);
     }
   }
 
-  const drawCard = () => queue.run(requestCard).catch(() => queue.run(requestCard));
+  const drawCard = () =>
+    queue.run(requestCard).catch((error: unknown) => {
+      if (error instanceof FinalAnswer) throw error;
+      return queue.run(requestCard);
+    });
 
   return {
     async drawCards(count): Promise<CardDraw> {

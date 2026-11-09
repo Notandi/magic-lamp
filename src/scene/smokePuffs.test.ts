@@ -58,13 +58,13 @@ describe('Smoke puff pool', () => {
     expect(pool.liveCount).toBe(0);
   });
 
-  it('never has more live puffs than the particle budget', () => {
+  it('never has more live puffs than the Smoke budget', () => {
     const pool = createSmokePool({ budget: 30 });
     run(pool, 3, 1);
     expect(pool.liveCount).toBe(30);
   });
 
-  it('respects a lowered particle budget', () => {
+  it('respects a lowered Smoke budget', () => {
     const pool = createSmokePool({ budget: 300 });
     run(pool, 2, 1);
     pool.budget = 40;

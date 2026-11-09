@@ -4,10 +4,11 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import handUrl from '../assets/hand/right.glb?url';
+import { damp, followAmount } from '../math';
 import { handTarget } from './handPose';
 import { rigHand } from './handRig';
 import { LAMP_OBJECT_NAME } from './Lamp';
-import { canvasPointer, pressesWithHand, steersHand } from './pointerInput';
+import { useHandInput } from './HandInputProvider';
 
 /** Hand model metres → scene units. The Hand ends up a little over half the Lamp's width. */
 const HAND_SCALE = 7;
@@ -29,7 +30,7 @@ const CURL_RATE = 12;
 
 const normalMatrix = new THREE.Matrix3();
 
-/** The player's 3D right Hand, standing in for the system cursor. */
+/** The player's 3D right Hand, standing in for the system cursor. It follows the Hand input (see handInput.ts). */
 export function Hand() {
   const gltf = useGLTF(handUrl);
   const { model, rig } = useMemo(() => {
@@ -54,49 +55,20 @@ export function Hand() {
   }, [gltf.scene]);
 
   const hand = useRef<THREE.Group>(null);
-  const pressed = useRef(false);
-  /** Where the Hand points, in normalised device coordinates. Starts at the centre of the view. */
-  const aim = useRef(new THREE.Vector2());
   const curl = useRef(0);
   const placed = useRef(false);
   const lamp = useRef<THREE.Object3D | undefined>(undefined);
-  const gl = useThree((s) => s.gl);
+  const aim = useRef(new THREE.Vector2());
+  const input = useHandInput();
+  const gl = useThree((state) => state.gl);
 
-  // Hide the system cursor and track the pointer and button. The Hand reads raw pointer
-  // events itself (like the Rub input) rather than R3F's pointer, so mouse, pen and touch
-  // all steer it from the same client coordinates. On touch it follows the first finger.
+  // The Hand stands in for the system cursor, so hide it over the canvas.
   useEffect(() => {
     const canvas = gl.domElement;
     const previousCursor = canvas.style.cursor;
     canvas.style.cursor = 'none';
-    const aimAt = (e: PointerEvent) => {
-      const { ndcX, ndcY } = canvasPointer(e, canvas.getBoundingClientRect());
-      aim.current.set(ndcX, ndcY);
-    };
-    const down = (e: PointerEvent) => {
-      if (!pressesWithHand(e)) return;
-      aimAt(e); // a tap has no move before it, so jump the Hand to the finger
-      pressed.current = true;
-    };
-    const move = (e: PointerEvent) => {
-      if (steersHand(e)) aimAt(e);
-    };
-    const up = (e: Event) => {
-      if (e instanceof PointerEvent && !steersHand(e)) return;
-      pressed.current = false;
-    };
-    canvas.addEventListener('pointerdown', down);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    window.addEventListener('blur', up);
     return () => {
       canvas.style.cursor = previousCursor;
-      canvas.removeEventListener('pointerdown', down);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-      window.removeEventListener('blur', up);
     };
   }, [gl]);
 
@@ -105,7 +77,9 @@ export function Hand() {
     if (!group) return;
     if (!lamp.current?.parent) lamp.current = scene.getObjectByName(LAMP_OBJECT_NAME);
 
-    raycaster.setFromCamera(aim.current, camera);
+    // Raycast every frame, not just on pointer events: the Lamp trembles and the camera drifts
+    // under a still pointer, and the Hand must stay on the Lamp's surface.
+    raycaster.setFromCamera(aim.current.set(input.aim.x, input.aim.y), camera);
     const ray = raycaster.ray;
     let hit: { point: THREE.Vector3; normal: THREE.Vector3 } | null = null;
     const first = lamp.current ? raycaster.intersectObject(lamp.current, true)[0] : undefined;
@@ -118,18 +92,18 @@ export function Hand() {
       hit = { point: first.point, normal };
     }
 
-    const target = handTarget({ ray, pressed: pressed.current, hit });
+    const target = handTarget({ ray, pressed: input.pressed, hit });
     if (!placed.current) {
       group.position.copy(target.position);
       group.quaternion.copy(target.quaternion);
       placed.current = true;
     } else {
-      const k = 1 - Math.exp(-FOLLOW_RATE * dt);
-      group.position.lerp(target.position, k);
-      group.quaternion.slerp(target.quaternion, k);
+      const follow = followAmount(FOLLOW_RATE, dt);
+      group.position.lerp(target.position, follow);
+      group.quaternion.slerp(target.quaternion, follow);
     }
 
-    curl.current += ((pressed.current ? 1 : 0) - curl.current) * (1 - Math.exp(-CURL_RATE * dt));
+    curl.current = damp(curl.current, input.pressed ? 1 : 0, CURL_RATE, dt);
     rig.setCurl(curl.current);
   });
 

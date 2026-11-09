@@ -24,7 +24,7 @@ const MAX_TREMBLE = 0.035;
 export function Lamp({ session }: { session: LampSession }) {
   const root = useRef<THREE.Group>(null);
   const glowLight = useRef<THREE.PointLight>(null);
-  useLampRubInput(root, session);
+  useLampRubInput(session);
 
   const geo = useMemo(buildLampGeometry, []);
   const brass = useMemo(

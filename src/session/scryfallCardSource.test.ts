@@ -6,6 +6,7 @@ import modalDfc from './fixtures/scryfall/card-modal_dfc.json';
 import split from './fixtures/scryfall/card-split.json';
 import adventure from './fixtures/scryfall/card-adventure.json';
 import noMatch from './fixtures/scryfall/error-404-random-no-match.json';
+import badQuery from './fixtures/scryfall/error-400-bad-query.json';
 
 /** A fake `fetch` that answers every request with the next of `bodies`, as a 200 JSON response. */
 function fakeFetch(...bodies: unknown[]) {
@@ -243,6 +244,29 @@ describe('Scryfall card source pacing', () => {
     expect(scryfall.requests()).toBe(2);
     scryfall.respond(1);
     await expect(draw).resolves.toMatchObject({ kind: 'cards' });
+  });
+
+  it.each([429, 500, 503])('retries a %i response once', async (status) => {
+    let calls = 0;
+    const fetch = async () =>
+      ++calls === 1 ? new Response('{}', { status }) : new Response(JSON.stringify(normal), { status: 200 });
+    const draw = await createScryfallCardSource({ fetch, queue: unpaced() }).drawCards(1);
+    expect(draw).toMatchObject({ kind: 'cards' });
+    expect(calls).toBe(2);
+  });
+
+  it.each([
+    [400, badQuery],
+    [404, noMatch],
+  ])('does not retry a %i response: asking again would get the same answer', async (status, body) => {
+    let calls = 0;
+    const fetch = async () => {
+      calls++;
+      return new Response(JSON.stringify(body), { status });
+    };
+    const draw = await createScryfallCardSource({ fetch, queue: unpaced() }).drawCards(5);
+    expect(draw).toEqual({ kind: 'magic-unavailable' });
+    expect(calls).toBe(1);
   });
 
   it('gives up with magic unavailable when the retry fails too, without requesting the rest', async () => {

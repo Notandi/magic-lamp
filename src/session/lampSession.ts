@@ -5,6 +5,7 @@
  * and reads back a read-only `state` snapshot to draw from.
  */
 
+import { clamp01 } from '../math';
 import { faceDownCardSource, type Card, type CardDraw, type CardSource } from './cardSource';
 
 /** Tuning constants, kept together so they're easy to change after playtesting. */
@@ -12,16 +13,16 @@ export const LAMP_TUNING = {
   /** Seconds of steady back-and-forth Rubbing that take Charge from 0 to 1. */
   fillSeconds: 6,
   /** Rub strokes per second that count as "steady" Rubbing. */
-  steadyStrokesPerSecond: 3,
+  steadyRubStrokesPerSecond: 3,
   /** Minimum distance (CSS pixels) a drag must travel before reversing for it to count as a Rub stroke. */
-  minStrokeDistance: 40,
+  minRubStrokeDistance: 40,
   /** Distance (CSS pixels) the pointer must travel back before a reversal is recognised; filters jitter. */
   reversalDistance: 8,
   /** Rub stroke speed (CSS pixels/second) at or below which no speed bonus applies. */
-  steadyStrokeSpeed: 300,
-  /** Largest extra Charge a fast Rub stroke earns, as a fraction of a normal stroke's Charge. */
+  steadyRubStrokeSpeed: 300,
+  /** Largest extra Charge a fast Rub stroke earns, as a fraction of a normal Rub stroke's Charge. */
   maxSpeedBonus: 0.25,
-  /** Stroke speed, as a multiple of the steady speed, at which the full speed bonus is reached. */
+  /** Rub stroke speed, as a multiple of the steady speed, at which the full speed bonus is reached. */
   fullBonusSpeedMultiple: 2,
   /** Seconds without a Rub stroke before Charge starts draining. */
   drainDelaySeconds: 1.5,
@@ -90,6 +91,14 @@ export interface LampSession {
   /** Advances time by `dt` seconds. */
   tick(dt: number): void;
   readonly state: LampState;
+  /** Whether a Wish is under way: Charge has filled and its Cards haven't settled yet. */
+  isWishing(): boolean;
+  /** Whether settled Cards respond to the Hand hovering over them: they're on show and none is Inspected. */
+  canHoverCards(): boolean;
+  /** Whether the Card at `index` can be dragged to flip it: any settled Card on show, or the Inspected Card. */
+  canFlipCard(index: number): boolean;
+  /** Whether the Card at `index` is the one being Inspected. */
+  isInspected(index: number): boolean;
 }
 
 interface Point {
@@ -98,7 +107,6 @@ interface Point {
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 export interface LampSessionOptions {
   /** Where Wishes get their Cards. Defaults to a source whose Cards are always face-down. */
@@ -108,56 +116,61 @@ export interface LampSessionOptions {
 
 export function createLampSession({
   cardSource = faceDownCardSource,
-  tuning = {},
+  tuning: overrides = {},
 }: LampSessionOptions = {}): LampSession {
-  const t: LampTuning = { ...LAMP_TUNING, ...tuning };
-  const chargePerStroke = 1 / (t.fillSeconds * t.steadyStrokesPerSecond);
+  const tuning: LampTuning = { ...LAMP_TUNING, ...overrides };
+  const chargePerRubStroke = 1 / (tuning.fillSeconds * tuning.steadyRubStrokesPerSecond);
 
   let now = 0;
   let charge = 0;
   let buttonDown = false;
   let isRubbing = false;
-  let lastStrokeAt = -Infinity;
+  let lastRubStrokeAt = -Infinity;
   let wishId = 0;
   let wishing = false;
   let cards: WishCards | null = null;
   let wishStartedAt = 0;
   let inspectedCard: number | null = null;
 
-  // The next Wish's Cards: requested up front and after each Wish takes its Cards, kept until
-  // a Wish takes them. At most one request is in flight.
+  // The next Wish's Cards: requested up front, after each Wish takes its Cards, and at a Rub
+  // start or Wish start when nothing is ready or on its way. Real Cards are kept until a Wish
+  // takes them; a "magic unavailable" draw only counts for a Wish already waiting on it.
+  // At most one request is in flight.
   let nextDraw: CardDraw | 'requested' | null = null;
 
   function requestNextCards() {
     if (nextDraw !== null) return;
     nextDraw = 'requested';
     cardSource
-      .drawCards(t.cardsPerWish)
+      .drawCards(tuning.cardsPerWish)
       .catch((): CardDraw => ({ kind: 'magic-unavailable' }))
       .then((draw) => {
         nextDraw = draw;
-        attachPreparedCards();
+        if (wishing && !cards) attachPreparedCards();
+        // A failure with no Wish waiting is dropped, not kept: the next Rub start asks again,
+        // so a blip minutes ago doesn't turn a later Wish face-down.
+        else if (draw.kind === 'magic-unavailable') nextDraw = null;
       });
   }
 
   // The Rub stroke in progress: where it began, and the farthest point reached from there.
-  let strokeStart: Point = { x: 0, y: 0 };
-  let strokeStartedAt = 0;
-  let extreme: Point = strokeStart;
+  let rubStrokeStart: Point = { x: 0, y: 0 };
+  let rubStrokeStartedAt = 0;
+  let extreme: Point = rubStrokeStart;
 
-  function beginStroke(from: Point, current: Point = from) {
-    strokeStart = { x: from.x, y: from.y };
-    strokeStartedAt = now;
+  function beginRubStroke(from: Point, current: Point = from) {
+    rubStrokeStart = { x: from.x, y: from.y };
+    rubStrokeStartedAt = now;
     extreme = { x: current.x, y: current.y };
   }
 
-  function addStrokeCharge(length: number, seconds: number) {
+  function addRubStrokeCharge(length: number, seconds: number) {
     const speed = length / Math.max(seconds, 1e-3);
-    const over = (speed - t.steadyStrokeSpeed) / (t.steadyStrokeSpeed * (t.fullBonusSpeedMultiple - 1));
-    const bonus = clamp01(over) * t.maxSpeedBonus;
+    const over = (speed - tuning.steadyRubStrokeSpeed) / (tuning.steadyRubStrokeSpeed * (tuning.fullBonusSpeedMultiple - 1));
+    const bonus = clamp01(over) * tuning.maxSpeedBonus;
     cards = null; // the first Rub stroke after a Wish dissolves its Cards
-    charge = clamp01(charge + chargePerStroke * (1 + bonus));
-    lastStrokeAt = now;
+    charge = clamp01(charge + chargePerRubStroke * (1 + bonus));
+    lastRubStrokeAt = now;
     if (charge >= 1) startWish();
   }
 
@@ -169,6 +182,7 @@ export function createLampSession({
     isRubbing = false;
     cards = null;
     attachPreparedCards();
+    requestNextCards(); // in case nothing was ready or on its way
   }
 
   /** While a Wish is waiting for Cards, hands it the prepared Cards as soon as there are some. */
@@ -177,27 +191,27 @@ export function createLampSession({
     cards =
       nextDraw.kind === 'cards'
         ? { kind: 'cards', cards: nextDraw.cards }
-        : { kind: 'face-down', count: t.cardsPerWish, reason: 'magic-unavailable' };
+        : { kind: 'face-down', count: tuning.cardsPerWish, reason: 'magic-unavailable' };
     nextDraw = null;
     requestNextCards();
   }
 
   function followRub(at: Point) {
-    const reach = distance(extreme, strokeStart);
-    if (distance(at, strokeStart) >= reach) {
+    const reach = distance(extreme, rubStrokeStart);
+    if (distance(at, rubStrokeStart) >= reach) {
       extreme = { x: at.x, y: at.y };
       return;
     }
-    if (distance(at, extreme) < t.reversalDistance) return;
-    // The drag has reversed: the leg from strokeStart to extreme is over.
-    if (reach >= t.minStrokeDistance) addStrokeCharge(reach, now - strokeStartedAt);
-    beginStroke(extreme, at);
+    if (distance(at, extreme) < tuning.reversalDistance) return;
+    // The drag has reversed: the leg from rubStrokeStart to extreme is over.
+    if (reach >= tuning.minRubStrokeDistance) addRubStrokeCharge(reach, now - rubStrokeStartedAt);
+    beginRubStroke(extreme, at);
   }
 
   function updateRubbing(pointer: LampPointer) {
     const rubbing = buttonDown && pointer.overLamp && !wishing && inspectedCard === null;
     if (rubbing && !isRubbing) {
-      beginStroke(pointer);
+      beginRubStroke(pointer);
       requestNextCards(); // in case nothing is ready or on its way
     }
     isRubbing = rubbing;
@@ -234,10 +248,10 @@ export function createLampSession({
     },
     tick(dt) {
       now += dt;
-      if (now - lastStrokeAt >= t.drainDelaySeconds) charge = clamp01(charge - t.drainPerSecond * dt);
-      if (wishing && !cards && now - wishStartedAt >= t.cardWaitSeconds) {
+      if (now - lastRubStrokeAt >= tuning.drainDelaySeconds) charge = clamp01(charge - tuning.drainPerSecond * dt);
+      if (wishing && !cards && now - wishStartedAt >= tuning.cardWaitSeconds) {
         // Not ready in time: rise face-down. A draw still on its way is kept for the next Wish.
-        cards = { kind: 'face-down', count: t.cardsPerWish, reason: 'not-ready' };
+        cards = { kind: 'face-down', count: tuning.cardsPerWish, reason: 'not-ready' };
       }
     },
     get state(): LampState {
@@ -250,5 +264,9 @@ export function createLampSession({
         inspectedCard,
       };
     },
+    isWishing: () => wishing,
+    canHoverCards: () => !wishing && cards !== null && inspectedCard === null,
+    canFlipCard: (index) => !wishing && cards !== null && (inspectedCard === null || inspectedCard === index),
+    isInspected: (index) => inspectedCard === index,
   };
 }
