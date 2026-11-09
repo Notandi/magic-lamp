@@ -4,6 +4,9 @@ import * as THREE from 'three';
 import { buildLampGeometry } from './lampGeometry';
 import { gemGlow } from './flicker';
 
+/** Name of the Lamp's root object, so other scene parts (like the Hand) can raycast it. */
+export const LAMP_OBJECT_NAME = 'lamp';
+
 /** The code-built brass genie Lamp, ported from prototypes/code-lamp.html. */
 export function Lamp() {
   const geo = useMemo(buildLampGeometry, []);
@@ -31,7 +34,7 @@ export function Lamp() {
   });
 
   return (
-    <group position={[-0.3, 0, 0]}>
+    <group name={LAMP_OBJECT_NAME} position={[-0.3, 0, 0]}>
       <mesh geometry={geo.foot} material={darkBrass} castShadow receiveShadow />
       <mesh geometry={geo.body} material={brass} scale={[1.35, 1, 0.85]} castShadow receiveShadow />
       <mesh
