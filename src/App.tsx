@@ -2,6 +2,7 @@ import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Credits } from './credits/Credits';
+import { AdaptiveQuality } from './scene/AdaptiveQuality';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
 import { Hand } from './scene/Hand';
@@ -29,11 +30,17 @@ export function App() {
       <CameraRig />
       <Lighting />
       <Lamp session={session} />
-      <Wish session={session} origin={SPOUT_TIP_WORLD} />
       <Suspense fallback={null}>
         <Hand />
       </Suspense>
-      <PostFx />
+      <AdaptiveQuality>
+        {({ smokeBudget, bloomResolutionScale }) => (
+          <>
+            <Wish session={session} origin={SPOUT_TIP_WORLD} smokeBudget={smokeBudget} />
+            <PostFx bloomResolutionScale={bloomResolutionScale} />
+          </>
+        )}
+      </AdaptiveQuality>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
         <meshStandardMaterial color={0x140c1e} roughness={0.9} />
