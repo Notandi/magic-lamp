@@ -91,6 +91,14 @@ export interface LampSession {
   /** Advances time by `dt` seconds. */
   tick(dt: number): void;
   readonly state: LampState;
+  /** Whether a Wish is under way: Charge has filled and its Cards haven't settled yet. */
+  isWishing(): boolean;
+  /** Whether settled Cards respond to the Hand hovering over them: they're on show and none is Inspected. */
+  canHoverCards(): boolean;
+  /** Whether the Card at `index` can be dragged to flip it: any settled Card on show, or the Inspected Card. */
+  canFlipCard(index: number): boolean;
+  /** Whether the Card at `index` is the one being Inspected. */
+  isInspected(index: number): boolean;
 }
 
 interface Point {
@@ -256,5 +264,9 @@ export function createLampSession({
         inspectedCard,
       };
     },
+    isWishing: () => wishing,
+    canHoverCards: () => !wishing && cards !== null && inspectedCard === null,
+    canFlipCard: (index) => !wishing && cards !== null && (inspectedCard === null || inspectedCard === index),
+    isInspected: (index) => inspectedCard === index,
   };
 }

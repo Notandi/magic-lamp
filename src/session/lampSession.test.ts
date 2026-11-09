@@ -480,3 +480,42 @@ describe('Lamp session: Inspecting a Card', () => {
     expect(session.state.cards).toBe(cards);
   });
 });
+
+describe('Lamp session: what the Cards respond to', () => {
+  it('no Card can be hovered or flipped while none are out or they are still rising', async () => {
+    const session = createLampSession();
+    expect(session.canHoverCards()).toBe(false);
+    expect(session.canFlipCard(0)).toBe(false);
+    expect(session.isWishing()).toBe(false);
+
+    rubUntilWish(session);
+    await flush();
+    expect(session.isWishing()).toBe(true);
+    expect(session.canHoverCards()).toBe(false);
+    expect(session.canFlipCard(0)).toBe(false);
+  });
+
+  it('settled Cards can all be hovered and flipped', async () => {
+    const session = createLampSession();
+    rubUntilWish(session);
+    await flush();
+    session.cardsSettled();
+    expect(session.isWishing()).toBe(false);
+    expect(session.canHoverCards()).toBe(true);
+    expect([0, 1, 2, 3, 4].map((i) => session.canFlipCard(i))).toEqual([true, true, true, true, true]);
+    expect(session.isInspected(2)).toBe(false);
+  });
+
+  it('while a Card is Inspected, only it can be flipped, and no Card hovered', async () => {
+    const session = createLampSession();
+    rubUntilWish(session);
+    await flush();
+    session.cardsSettled();
+    session.cardClicked(2);
+    expect(session.isInspected(2)).toBe(true);
+    expect(session.isInspected(3)).toBe(false);
+    expect(session.canHoverCards()).toBe(false);
+    expect(session.canFlipCard(2)).toBe(true);
+    expect(session.canFlipCard(3)).toBe(false);
+  });
+});

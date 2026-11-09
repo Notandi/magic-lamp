@@ -76,10 +76,8 @@ export function useCardPlay({
 
   const handlers = useMemo(() => {
     const s = play.current;
-    const canHover = () => s.settled && session.state.phase === 'showing';
-    const canFlip = () =>
-      s.settled &&
-      (session.state.phase === 'showing' || (session.state.phase === 'inspecting' && session.state.inspectedCard === index));
+    const canHover = () => s.settled && session.canHoverCards();
+    const canFlip = () => s.settled && session.canFlipCard(index);
 
     const trackHover = (e: ThreeEvent<PointerEvent>) => {
       const g = card.current;
@@ -135,10 +133,9 @@ export function useCardPlay({
     const s = play.current;
     if (!g) return;
     s.settled = settled;
-    const { phase, inspectedCard } = session.state;
 
     // Hover: tilt the Card's face toward the Hand.
-    const hover = settled && phase === 'showing' ? s.hover : null;
+    const hover = settled && session.canHoverCards() ? s.hover : null;
     s.tiltY = damp(s.tiltY, hover ? hover.u * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
     s.tiltX = damp(s.tiltX, hover ? -hover.v * CARD_PLAY.hoverTilt : 0, CARD_PLAY.tiltRate, dt);
 
@@ -147,7 +144,7 @@ export function useCardPlay({
     if (flipper.current) flipper.current.rotation.y = s.flip;
 
     // Inspect: fly up close to the camera, facing it.
-    const inspected = settled && phase === 'inspecting' && inspectedCard === index;
+    const inspected = settled && session.isInspected(index);
     s.inspect = damp(s.inspect, inspected ? 1 : 0, CARD_PLAY.inspectRate, dt);
     if (s.inspect < 1e-3) s.inspect = 0;
     const k = smoothstep(s.inspect);

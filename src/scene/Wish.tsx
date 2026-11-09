@@ -25,7 +25,7 @@ export function Wish({
   const dissolve = useMemo<SmokeDissolve>(() => ({ bursts: [] }), []);
 
   useFrame(() => {
-    const next: SmokeMode = session.state.phase === 'wishing' ? 'swirl-column' : 'rise';
+    const next: SmokeMode = session.isWishing() ? 'swirl-column' : 'rise';
     if (next !== modeRef.current) {
       modeRef.current = next;
       setMode(next);
