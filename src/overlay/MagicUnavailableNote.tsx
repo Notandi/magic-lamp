@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import type { LampSession } from '../session/lampSession';
+import type { LampSession, WishCards } from '../session/lampSession';
 
 const style: CSSProperties = {
   position: 'fixed',
@@ -20,27 +20,31 @@ const style: CSSProperties = {
   pointerEvents: 'none',
 };
 
-const magicUnavailable = (session: LampSession) => {
-  const { cards } = session.state;
-  return cards?.kind === 'face-down' && cards.reason === 'magic-unavailable';
-};
+/** What the note says over the current Wish's Cards, or null when there's nothing to say. */
+export function faceDownNote(cards: WishCards | null): string | null {
+  if (cards?.kind !== 'face-down') return null;
+  return cards.reason === 'magic-unavailable' ? 'The magic is unavailable right now.' : 'The magic is still gathering…';
+}
 
-/** A short note shown while the current Wish's Cards are face-down because Scryfall couldn't be reached. */
+/**
+ * A short note shown while the current Wish's Cards are face-down: Scryfall couldn't be reached,
+ * or the Cards weren't ready in time.
+ */
 export function MagicUnavailableNote({ session }: { session: LampSession }) {
-  const [shown, setShown] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
     let frame = requestAnimationFrame(function watch() {
-      setShown(magicUnavailable(session));
+      setNote(faceDownNote(session.state.cards));
       frame = requestAnimationFrame(watch);
     });
     return () => cancelAnimationFrame(frame);
   }, [session]);
 
-  if (!shown) return null;
+  if (!note) return null;
   return (
     <div role="status" style={style}>
-      The magic is unavailable right now.
+      {note}
     </div>
   );
 }
