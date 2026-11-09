@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Credits } from './credits/Credits';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
+import { Hand } from './scene/Hand';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
 import { SPOUT_TIP } from './scene/lampGeometry';
@@ -29,6 +30,9 @@ export function App() {
       <Lighting />
       <Lamp session={session} />
       <Smoke session={session} origin={SPOUT_TIP_WORLD} />
+      <Suspense fallback={null}>
+        <Hand />
+      </Suspense>
       <PostFx />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
