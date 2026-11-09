@@ -80,3 +80,33 @@ describe('Smoke puff pool', () => {
     expect(spreadX).toBeGreaterThan(0.1);
   });
 });
+
+describe('Smoke swirl column and dissolve', () => {
+  const swirl = (pool: SmokePool, seconds: number) => {
+    for (let i = 0; i < seconds * 60; i++) pool.step(1 / 60, 0, 1);
+  };
+
+  it('a Wish swirls Smoke into a tall, narrow, spinning column even at zero Charge', () => {
+    const pool = createSmokePool({ budget: 800 });
+    swirl(pool, 2);
+    const live = pool.puffs.filter((p) => p.alive);
+    expect(live.length).toBeGreaterThan(50);
+    const tall = live.filter((p) => p.y > 1);
+    expect(tall.length).toBeGreaterThan(10);
+    // Narrow: puffs stay close to the column's axis.
+    const meanRadius = live.reduce((s, p) => s + Math.hypot(p.x, p.z), 0) / live.length;
+    expect(meanRadius).toBeLessThan(0.5);
+    // Spinning: puffs circle the axis in one direction (angular momentum about y).
+    const spin = live.reduce((s, p) => s + (p.x * p.vz - p.z * p.vx), 0) / live.length;
+    expect(Math.abs(spin)).toBeGreaterThan(0.01);
+  });
+
+  it('a dissolve burst releases Smoke at the given point, within the budget', () => {
+    const pool = createSmokePool({ budget: 20 });
+    pool.burst({ x: 1, y: 2, z: 0 }, 50);
+    expect(pool.liveCount).toBe(20);
+    for (const p of pool.puffs.filter((q) => q.alive)) {
+      expect(Math.hypot(p.x - 1, p.y - 2, p.z)).toBeLessThan(0.5);
+    }
+  });
+});

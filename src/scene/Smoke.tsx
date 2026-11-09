@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { LampSession } from '../session/lampSession';
@@ -10,9 +10,20 @@ export const DEFAULT_SMOKE_BUDGET = 400;
 /**
  * How the Smoke moves.
  * - `rise`: puffs rise and drift from the spout, driven by Charge.
- * - `swirl-column`: the spinning column played during a Wish. Not implemented yet (#6); behaves as `rise`.
+ * - `swirl-column`: the spinning column played during a Wish. The Smoke eases into and out of it.
  */
 export type SmokeMode = 'rise' | 'swirl-column';
+
+/**
+ * Smoke released by dissolving Cards. Whoever dissolves Cards queues bursts here
+ * (world positions); the Smoke releases and empties them on its next frame.
+ */
+export interface SmokeDissolve {
+  readonly bursts: { x: number; y: number; z: number; count: number }[];
+}
+
+/** Seconds the Smoke takes to ease fully into or out of the swirl column. */
+const SWIRL_EASE_SECONDS = 0.6;
 
 export interface SmokeProps {
   session: LampSession;
@@ -21,11 +32,8 @@ export interface SmokeProps {
   /** Most puffs alive at once. */
   budget?: number;
   mode?: SmokeMode;
-  /**
-   * Progress (0..1) of the dissolve that plays when the previous Wish's Cards clear.
-   * Not implemented yet; reserved so the Cards ticket can drive it.
-   */
-  dissolve?: number;
+  /** Where the previous Wish's Cards are dissolving into Smoke. */
+  dissolve?: SmokeDissolve;
 }
 
 /** Overall puff opacity; additive puffs stack, so each one stays faint. */
@@ -72,7 +80,7 @@ const fragmentShader = /* glsl */ `
  * The Smoke rising from the Lamp's spout: a pool of soft, additive billboard puffs
  * whose density, size and colour follow the Lamp session's Charge.
  */
-export function Smoke({ session, origin, budget = DEFAULT_SMOKE_BUDGET }: SmokeProps) {
+export function Smoke({ session, origin, budget = DEFAULT_SMOKE_BUDGET, mode = 'rise', dissolve }: SmokeProps) {
   const [pool] = useState(() => createSmokePool({ budget }));
   useEffect(() => {
     pool.budget = budget;
@@ -113,9 +121,18 @@ export function Smoke({ session, origin, budget = DEFAULT_SMOKE_BUDGET }: SmokeP
   );
 
   const matrix = useMemo(() => new THREE.Matrix4(), []);
+  const swirl = useRef(0);
 
-  useFrame((_, dt) => {
-    pool.step(Math.min(dt, 0.1), session.state.charge);
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.1);
+    const target = mode === 'swirl-column' ? 1 : 0;
+    const easeStep = dt / SWIRL_EASE_SECONDS;
+    swirl.current = target > swirl.current ? Math.min(target, swirl.current + easeStep) : Math.max(target, swirl.current - easeStep);
+    if (dissolve) {
+      for (const b of dissolve.bursts) pool.burst({ x: b.x - origin[0], y: b.y - origin[1], z: b.z - origin[2] }, b.count);
+      dissolve.bursts.length = 0;
+    }
+    pool.step(dt, session.state.charge, swirl.current);
 
     const colors = mesh.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute;
     const seeds = mesh.geometry.getAttribute('aSeed') as THREE.InstancedBufferAttribute;
