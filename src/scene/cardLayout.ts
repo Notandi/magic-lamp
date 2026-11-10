@@ -11,7 +11,7 @@ export const CARD_SIZE = { width: 0.63, height: 0.88, thickness: 0.012, cornerRa
 /** Tuning for the fan arc. */
 export const FAN_TUNING = {
   /** World position of the middle Card. */
-  centre: [0.2, 2.35, 0.3] as Vec3,
+  centre: [0.2, 3.2, 0.3] as Vec3,
   /** Horizontal distance between neighbouring Cards. */
   spacing: 0.72,
   /** How much lower each step away from the middle sits (scaled by steps²). */

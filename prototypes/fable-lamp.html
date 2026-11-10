@@ -1,0 +1,496 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fable's lamp</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05030a; overflow: hidden; }
+  #vignette { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.75) 100%); }
+  #note { position: fixed; left: 16px; bottom: 14px; color: #cdb98a; opacity: .7;
+    font: 13px Georgia, serif; letter-spacing: .04em; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="vignette"></div>
+<div id="note">Fable's lamp · drag to orbit · scroll to zoom</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ---------- renderer, scene, camera ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const BG = new THREE.Color(0x05030a);
+scene.background = BG;
+scene.fog = new THREE.Fog(BG, 9, 24);
+
+const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(3.4, 2.7, 7.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0.25, 1.15, 0);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.7;
+controls.minDistance = 3.5;
+controls.maxDistance = 14;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+// ---------- studio environment: dark room with a few bright softboxes ----------
+function studioEnvironment() {
+  const env = new THREE.Scene();
+  // a dim amber dome so the gold always has something warm to reflect
+  const dome = new THREE.SphereGeometry(30, 32, 24);
+  const top = new THREE.Color(0.20, 0.13, 0.09), horizon = new THREE.Color(0.75, 0.42, 0.16), under = new THREE.Color(0.10, 0.05, 0.14);
+  const colors = [], c = new THREE.Color(), pos = dome.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const h = pos.getY(i) / 30;
+    if (h >= 0) c.copy(horizon).lerp(top, Math.pow(h, 0.6)); else c.copy(horizon).lerp(under, Math.pow(-h, 0.4));
+    colors.push(c.r, c.g, c.b);
+  }
+  dome.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  env.add(new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const panel = (w, h, pos, color) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
+    m.position.set(...pos);
+    m.lookAt(0, 0, 0);
+    env.add(m);
+  };
+  panel(14, 9, [7, 9, 6], new THREE.Color(3.2, 2.5, 1.7));     // warm key softbox
+  panel(6, 14, [-11, 4, 2], new THREE.Color(1.3, 0.7, 2.6));   // violet side strip
+  panel(16, 3, [0, 11, -8], new THREE.Color(2.4, 2.0, 1.6));   // top hair light
+  panel(5, 5, [1, 2, 12], new THREE.Color(1.4, 1.0, 0.6));     // front fill
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const tex = pmrem.fromScene(env, 0.02).texture;
+  pmrem.dispose();
+  return tex;
+}
+scene.environment = studioEnvironment();
+
+// ---------- hand-drawn textures ----------
+// Engraving: a height map. Mid-grey is the surface, darker is cut in, lighter is raised.
+// x runs along the lamp (tail to spout), y runs around it (0 = underside, 0.5 = top).
+function engravingTexture() {
+  const W = 2048, H = 1024;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true }) /* CPU canvas: thousands of strokes crash GPU-backed 2D canvases */;
+  g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
+  const cut = '#2a2a2a', raised = '#d8d8d8';
+
+  // fish-scale field across the top of the lamp
+  g.strokeStyle = cut; g.lineWidth = 3;
+  const sw = 34, sh = 26;
+  for (let row = 0, y = H * 0.335; y < H * 0.665; y += sh, row++) {
+    for (let x = (row % 2) * sw / 2 - sw; x < W + sw; x += sw) {
+      g.beginPath(); g.arc(x, y, sw / 2, 0, Math.PI); g.stroke();
+    }
+  }
+
+  // a vine frieze along each flank
+  for (const yc of [H * 0.25, H * 0.75]) {
+    const half = 46;
+    g.fillStyle = '#808080'; g.fillRect(0, yc - half - 14, W, 2 * half + 28);
+    for (const s of [-1, 1]) {
+      g.strokeStyle = raised; g.lineWidth = 7;
+      g.beginPath(); g.moveTo(0, yc + s * (half + 4)); g.lineTo(W, yc + s * (half + 4)); g.stroke();
+      g.strokeStyle = cut; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(0, yc + s * (half - 6)); g.lineTo(W, yc + s * (half - 6)); g.stroke();
+    }
+    const periods = 40, k = (Math.PI * 2 * periods) / W;
+    for (const phase of [0, Math.PI]) {
+      g.strokeStyle = cut; g.lineWidth = 5;
+      g.beginPath();
+      for (let x = 0; x <= W; x += 3) g.lineTo(x, yc + Math.sin(x * k + phase) * (half - 18));
+      g.stroke();
+    }
+    // a raised bead in every eye of the vine, a cut leaf at every crossing
+    for (let i = 0; i < periods * 2; i++) {
+      const x = ((i + 0.5) * Math.PI) / k;
+      g.fillStyle = raised; g.beginPath(); g.arc(x, yc, 7, 0, Math.PI * 2); g.fill();
+      const xc = (i * Math.PI) / k;
+      g.fillStyle = cut;
+      for (const s of [-1, 1]) {
+        g.beginPath(); g.ellipse(xc, yc + s * 30, 4, 9, 0, 0, Math.PI * 2); g.fill();
+      }
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
+
+// Patina: uneven polish, so highlights break up the way old metal does.
+function patinaTexture() {
+  const S = 512;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = 'rgb(150,150,150)'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 900; i++) {
+    const v = 90 + Math.random() * 150 | 0;
+    g.fillStyle = `rgba(${v},${v},${v},${0.04 + Math.random() * 0.1})`;
+    g.beginPath();
+    g.ellipse(Math.random() * S, Math.random() * S, 4 + Math.random() * 46, 3 + Math.random() * 18,
+      Math.random() * Math.PI, 0, Math.PI * 2);
+    g.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+const patina = patinaTexture();
+const gold = new THREE.MeshPhysicalMaterial({
+  color: 0xf2b84b, metalness: 1, roughness: 0.34, roughnessMap: patina,
+  bumpMap: engravingTexture(), bumpScale: 0.9, side: THREE.DoubleSide,
+  clearcoat: 0.25, clearcoatRoughness: 0.3,
+});
+const plainGold = new THREE.MeshPhysicalMaterial({
+  color: 0xf2b84b, metalness: 1, roughness: 0.3, roughnessMap: patina,
+});
+const darkGold = new THREE.MeshPhysicalMaterial({
+  color: 0xb37a22, metalness: 1, roughness: 0.42, roughnessMap: patina,
+});
+
+// ---------- geometry helpers ----------
+const lamp = new THREE.Group();
+scene.add(lamp);
+const add = (geo, mat, parent = lamp) => {
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = m.receiveShadow = true;
+  parent.add(m);
+  return m;
+};
+const Z = new THREE.Vector3(0, 0, 1);
+const frameAt = (spine, t) => {
+  const C = spine.getPoint(t), T = spine.getTangent(t);
+  return { C, T, N: new THREE.Vector3(-T.y, T.x, 0) };
+};
+
+// Sweeps an ellipse along a curve lying in the XY plane. radii(t) gives [half-width, half-height].
+function loft(spine, radii, segs, radial) {
+  const pos = [], uv = [], idx = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs, { C, N } = frameAt(spine, t), [w, h] = radii(t);
+    for (let j = 0; j <= radial; j++) {
+      const v = j / radial, a = v * Math.PI * 2 - Math.PI / 2;
+      pos.push(C.x + N.x * h * Math.sin(a), C.y + N.y * h * Math.sin(a), w * Math.cos(a));
+      uv.push(t, v);
+    }
+  }
+  const row = radial + 1;
+  for (let i = 0; i < segs; i++) for (let j = 0; j < radial; j++) {
+    const a = i * row + j, b = a + row, c = a + 1, d = b + 1;
+    idx.push(a, b, c, b, d, c);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  // weld the normals along the seam so it doesn't show
+  const n = geo.attributes.normal, p = new THREE.Vector3(), q = new THREE.Vector3();
+  for (let i = 0; i <= segs; i++) {
+    const a = i * row, b = a + radial;
+    p.fromBufferAttribute(n, a).add(q.fromBufferAttribute(n, b)).normalize();
+    n.setXYZ(a, p.x, p.y, p.z); n.setXYZ(b, p.x, p.y, p.z);
+  }
+  return geo;
+}
+
+// A raised band wrapped around the lofted shape at spine position t.
+function band(spine, radii, t, lift, thickness) {
+  const { C, T, N } = frameAt(spine, t), [w, h] = radii(t);
+  const pos = [], idx = [], A = 72, B = 14;
+  for (let j = 0; j <= A; j++) {
+    const a = (j / A) * Math.PI * 2;
+    const R = N.clone().multiplyScalar((h + lift) * Math.sin(a)).addScaledVector(Z, (w + lift) * Math.cos(a));
+    const P = C.clone().add(R); R.normalize();
+    for (let k = 0; k <= B; k++) {
+      const b = (k / B) * Math.PI * 2;
+      const v = P.clone().addScaledVector(R, thickness * Math.cos(b)).addScaledVector(T, thickness * 1.5 * Math.sin(b));
+      pos.push(v.x, v.y, v.z);
+    }
+  }
+  for (let j = 0; j < A; j++) for (let k = 0; k < B; k++) {
+    const a = j * (B + 1) + k, b = a + B + 1;
+    idx.push(a, b, a + 1, b, b + 1, a + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const lathe = (pts, seg = 96) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+
+// ---------- body and spout: one continuous surface ----------
+// Each key is [x, y, half-width, half-height]. The body swells, then draws out into the spout.
+const keys = [
+  [-1.30, 0.97, 0.004, 0.004],
+  [-1.16, 0.96, 0.44, 0.31],
+  [-0.70, 0.95, 0.84, 0.53],
+  [ 0.00, 0.93, 1.00, 0.62],
+  [ 0.72, 0.95, 0.80, 0.50],
+  [ 1.28, 1.02, 0.44, 0.31],
+  [ 1.78, 1.20, 0.25, 0.195],
+  [ 2.22, 1.50, 0.165, 0.14],
+  [ 2.56, 1.86, 0.118, 0.108],
+  [ 2.73, 2.09, 0.125, 0.115],
+  [ 2.79, 2.19, 0.185, 0.165],
+];
+const spine = new THREE.CatmullRomCurve3(keys.map(([x, y]) => new THREE.Vector3(x, y, 0)));
+const radiiCurve = new THREE.CatmullRomCurve3(keys.map(([, , w, h]) => new THREE.Vector3(w, h, 0)));
+const bodyRadii = (t) => {
+  const r = radiiCurve.getPoint(t);
+  return [Math.max(r.x, 0.004), Math.max(r.y, 0.004)];
+};
+add(loft(spine, bodyRadii, 260, 96), gold);
+
+// bands where the body becomes the spout, and under the lip
+add(band(spine, bodyRadii, 0.555, 0.004, 0.022), darkGold);
+add(band(spine, bodyRadii, 0.585, 0.004, 0.014), plainGold);
+add(band(spine, bodyRadii, 0.86, 0.003, 0.016), darkGold);
+add(band(spine, bodyRadii, 0.997, 0.0, 0.02), plainGold);
+
+// the glow down inside the spout
+const throatMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.5, 3.2), side: THREE.DoubleSide });
+{
+  const { C, T, N } = frameAt(spine, 0.955), [w, h] = bodyRadii(0.955);
+  const throat = new THREE.Mesh(new THREE.CircleGeometry(1, 40), throatMat);
+  throat.matrixAutoUpdate = false;
+  throat.matrix.makeBasis(Z.clone().multiplyScalar(w), N.clone().multiplyScalar(h), T.clone().negate()).setPosition(C);
+  lamp.add(throat);
+}
+const tip = spine.getPoint(1);
+
+// ---------- handle: a loop with a thumb scroll ----------
+const handleSpine = new THREE.CatmullRomCurve3([
+  [-0.95, 1.24], [-1.42, 1.58], [-1.92, 1.56], [-2.16, 1.12], [-1.93, 0.66], [-1.46, 0.55], [-1.0, 0.72],
+].map(([x, y]) => new THREE.Vector3(x, y, 0)));
+add(loft(handleSpine, (t) => { const r = 0.055 + 0.035 * Math.sin(Math.PI * t); return [r * 1.25, r]; }, 120, 24), plainGold);
+
+const scrollSpine = new THREE.CatmullRomCurve3([
+  [-1.40, 1.60], [-1.56, 1.74], [-1.74, 1.95], [-1.60, 2.13], [-1.40, 2.05], [-1.42, 1.88], [-1.54, 1.90],
+].map(([x, y]) => new THREE.Vector3(x, y, 0)));
+add(loft(scrollSpine, (t) => { const r = 0.07 - 0.045 * t; return [r * 1.2, r]; }, 90, 20), plainGold);
+add(new THREE.SphereGeometry(0.045, 20, 14), darkGold).position.copy(scrollSpine.getPoint(1));
+
+// ---------- foot ----------
+add(lathe([
+  [0, 0], [0.70, 0], [0.735, 0.03], [0.71, 0.07], [0.62, 0.095], [0.60, 0.12], [0.46, 0.15],
+  [0.33, 0.20], [0.27, 0.27], [0.29, 0.33], [0.36, 0.37], [0.47, 0.43], [0, 0.43],
+]), plainGold);
+
+// ---------- lid and finial ----------
+const lid = new THREE.Group();
+lid.position.x = -0.04;
+lamp.add(lid);
+add(lathe([
+  [0, 1.42], [0.47, 1.42], [0.49, 1.49], [0.45, 1.525], [0.42, 1.545],
+  [0.42, 1.57], [0.39, 1.67], [0.31, 1.76], [0.19, 1.83], [0.10, 1.865],
+  [0.055, 1.89], [0.045, 1.95], [0.085, 1.985], [0.105, 2.02], [0.07, 2.06],
+  [0.035, 2.10], [0.05, 2.135], [0.065, 2.15], [0, 2.155],
+]), plainGold, lid);
+
+const gemMat = (color, glow) => new THREE.MeshPhysicalMaterial({
+  color, emissive: color, emissiveIntensity: glow, metalness: 0, roughness: 0.08,
+  clearcoat: 1, clearcoatRoughness: 0.03, flatShading: true,
+});
+const amethyst = gemMat(0x9a4dff, 0.9);
+const finialGem = add(new THREE.OctahedronGeometry(0.105, 1), amethyst, lid);
+finialGem.scale.set(0.85, 1.25, 0.85);
+finialGem.position.y = 2.27;
+
+// beads around the lid collar and the foot rim
+function beads(count, radius, y, size, parent) {
+  const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(size, 14, 10), darkGold, count);
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    mesh.setMatrixAt(i, m.makeTranslation(Math.cos(a) * radius, y, Math.sin(a) * radius));
+  }
+  mesh.castShadow = true;
+  parent.add(mesh);
+}
+beads(34, 0.487, 1.49, 0.026, lid);
+beads(52, 0.73, 0.034, 0.028, lamp);
+
+// six small rubies set into the lid
+const ruby = gemMat(0xd1123a, 0.35);
+for (let i = 0; i < 6; i++) {
+  const a = (i / 6) * Math.PI * 2 + 0.3;
+  const stone = add(new THREE.SphereGeometry(0.038, 12, 8), ruby, lid);
+  stone.position.set(Math.cos(a) * 0.355, 1.715, Math.sin(a) * 0.355);
+  const bezel = add(new THREE.TorusGeometry(0.042, 0.012, 8, 20), darkGold, lid);
+  bezel.position.copy(stone.position);
+  bezel.lookAt(stone.position.clone().add(new THREE.Vector3(Math.cos(a), 1.1, Math.sin(a))));
+}
+
+// a large cabochon on each flank, sitting in the frieze
+const emerald = new THREE.MeshPhysicalMaterial({
+  color: 0x0c8f6a, emissive: 0x0a5c46, emissiveIntensity: 0.5, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02,
+});
+for (const s of [-1, 1]) {
+  const stone = add(new THREE.SphereGeometry(1, 32, 20), emerald);
+  stone.scale.set(0.2, 0.13, 0.07);
+  stone.position.set(0, 0.93, s * 0.985);
+  const bezel = add(new THREE.TorusGeometry(1, 0.11, 12, 48), darkGold);
+  bezel.scale.set(0.215, 0.145, 0.12);
+  bezel.position.set(0, 0.93, s * 0.985);
+}
+
+lamp.position.x = -0.25;
+
+// ---------- floor ----------
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(24, 96),
+  new THREE.MeshStandardMaterial({ color: 0x120b18, roughness: 0.55, metalness: 0.3, envMapIntensity: 0.35 }),
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ---------- lights ----------
+const key = new THREE.SpotLight(0xffc27a, 70, 30, 0.42, 0.7, 1.6);
+key.position.set(4.5, 7.5, 4.5);
+key.target.position.set(0, 0.9, 0);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.bias = -0.0004;
+key.shadow.radius = 6;
+scene.add(key, key.target);
+const rim = new THREE.PointLight(0x8a4dff, 14, 20, 2);
+rim.position.set(-4, 2.5, -3.5);
+scene.add(rim);
+const spoutGlow = new THREE.PointLight(0xa45cff, 4, 6, 2);
+spoutGlow.position.copy(tip).add(new THREE.Vector3(-0.2, 0.25, 0));
+scene.add(spoutGlow);
+
+// ---------- smoke: a wisp curling out of the spout, computed on the GPU ----------
+const SMOKE = 260;
+const smokeGeo = new THREE.BufferGeometry();
+smokeGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SMOKE * 3), 3));
+smokeGeo.setAttribute('aSeed', new THREE.Float32BufferAttribute(Float32Array.from({ length: SMOKE }, Math.random), 1));
+const smokeMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  uniforms: { uTime: { value: 0 }, uTip: { value: tip.clone().add(lamp.position) }, uScale: { value: innerHeight } },
+  vertexShader: /* glsl */`
+    attribute float aSeed;
+    uniform float uTime; uniform vec3 uTip; uniform float uScale;
+    varying float vLife; varying float vSeed;
+    void main() {
+      float life = fract(uTime * 0.085 + aSeed);
+      float s = aSeed * 61.7;
+      vec3 p = uTip;
+      float spread = life * life;
+      p.y += life * 3.4;
+      p.x += 0.35 * life + sin(life * 7.0 + uTime * 0.6 + s) * 0.42 * spread + sin(life * 2.3 + s * 1.7) * 0.25 * life;
+      p.z += cos(life * 6.0 + uTime * 0.5 + s * 2.1) * 0.42 * spread + sin(s * 3.3) * 0.2 * life;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = (0.10 + 0.95 * life) * uScale / -mv.z;
+      vLife = life; vSeed = aSeed;
+    }`,
+  fragmentShader: /* glsl */`
+    varying float vLife; varying float vSeed;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      float soft = smoothstep(0.5, 0.0, d);
+      float fade = smoothstep(0.0, 0.06, vLife) * pow(1.0 - vLife, 1.6);
+      vec3 col = mix(vec3(1.0, 0.72, 0.95), vec3(0.42, 0.2, 0.95), smoothstep(0.0, 0.5, vLife));
+      gl_FragColor = vec4(col, soft * soft * fade * (0.10 + 0.08 * vSeed));
+    }`,
+});
+const smoke = new THREE.Points(smokeGeo, smokeMat);
+smoke.frustumCulled = false;
+scene.add(smoke);
+
+// ---------- golden dust drifting in the light ----------
+const DUST = 380;
+const dustPos = new Float32Array(DUST * 3);
+for (let i = 0; i < DUST; i++) {
+  dustPos[i * 3] = (Math.random() - 0.5) * 11;
+  dustPos[i * 3 + 1] = Math.random() * 5.5;
+  dustPos[i * 3 + 2] = (Math.random() - 0.5) * 11;
+}
+const dustGeo = new THREE.BufferGeometry();
+dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
+dustGeo.setAttribute('aSeed', new THREE.Float32BufferAttribute(Float32Array.from({ length: DUST }, Math.random), 1));
+const dustMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  uniforms: { uTime: { value: 0 }, uScale: { value: innerHeight } },
+  vertexShader: /* glsl */`
+    attribute float aSeed; uniform float uTime; uniform float uScale; varying float vTwinkle;
+    void main() {
+      vec3 p = position;
+      p.y = mod(p.y + uTime * (0.03 + aSeed * 0.05), 5.5);
+      p.x += sin(uTime * 0.2 + aSeed * 40.0) * 0.3;
+      p.z += cos(uTime * 0.17 + aSeed * 23.0) * 0.3;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = (0.012 + aSeed * 0.02) * uScale / -mv.z;
+      vTwinkle = 0.5 + 0.5 * sin(uTime * (1.0 + aSeed * 3.0) + aSeed * 90.0);
+    }`,
+  fragmentShader: /* glsl */`
+    varying float vTwinkle;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      gl_FragColor = vec4(vec3(1.0, 0.8, 0.45), smoothstep(0.5, 0.0, d) * vTwinkle * 0.55);
+    }`,
+});
+const dust = new THREE.Points(dustGeo, dustMat);
+dust.frustumCulled = false;
+scene.add(dust);
+
+// ---------- post-processing ----------
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.32, 0.6, 0.92);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  smokeMat.uniforms.uScale.value = dustMat.uniforms.uScale.value = innerHeight;
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  smokeMat.uniforms.uTime.value = dustMat.uniforms.uTime.value = t;
+  const breath = 0.5 + 0.5 * Math.sin(t * 1.3);
+  key.intensity = 70 + Math.sin(t * 7.3) * 3 + Math.sin(t * 12.1) * 2; // candle flicker
+  spoutGlow.intensity = 3 + breath * 3;
+  throatMat.color.setRGB(1.2 + breath * 0.9, 0.4 + breath * 0.2, 2.6 + breath * 1.4);
+  amethyst.emissiveIntensity = 0.7 + breath * 0.6;
+  finialGem.rotation.y = t * 0.5;
+  controls.update();
+  composer.render();
+});
+</script>
+</body>
+</html>
