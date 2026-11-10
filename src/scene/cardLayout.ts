@@ -1,21 +1,21 @@
 /**
- * Where a Wish's Cards settle: a fan-shaped arc floating in the upper half of the view,
- * with the Lamp still visible (and reachable) below. No React or three.js here.
+ * Where a Wish's Cards settle: a fan-shaped arc floating in front of the Genie, between its
+ * open hands, with the Lamp still visible (and reachable) below. No React or three.js here.
  */
 
 import type { Vec3 } from './camera';
 
 /** A Card's size in world units, at the standard Magic card ratio (63 × 88 mm). */
-export const CARD_SIZE = { width: 0.63, height: 0.88, thickness: 0.012, cornerRadius: 0.03 } as const;
+export const CARD_SIZE = { width: 0.756, height: 1.056, thickness: 0.014, cornerRadius: 0.036 } as const;
 
 /** Tuning for the fan arc. */
 export const FAN_TUNING = {
   /** World position of the middle Card. */
-  centre: [0.2, 3.2, 0.3] as Vec3,
+  centre: [0.9, 3.3, 0.45] as Vec3,
   /** Horizontal distance between neighbouring Cards. */
-  spacing: 0.72,
+  spacing: 0.84,
   /** How much lower each step away from the middle sits (scaled by steps²). */
-  droop: 0.07,
+  droop: 0.06,
   /** Outward tilt (radians) per step away from the middle. */
   tiltPerStep: 0.07,
 } as const;

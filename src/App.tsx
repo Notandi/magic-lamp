@@ -3,11 +3,13 @@ import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import cardBackUrl from './assets/cards/card-back.jpg';
 import { Credits } from './credits/Credits';
+import { Hint } from './overlay/Hint';
 import { MagicUnavailableNote } from './overlay/MagicUnavailableNote';
 import { AdaptiveQuality } from './scene/AdaptiveQuality';
 import { CAMERA_HOME } from './scene/camera';
 import { CameraRig } from './scene/CameraRig';
 import { Hand } from './scene/Hand';
+import { Floor } from './scene/Floor';
 import { HandInputProvider } from './scene/HandInputProvider';
 import { Lamp } from './scene/Lamp';
 import { Lighting } from './scene/Lighting';
@@ -46,7 +48,7 @@ export function App() {
       style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
     >
       <color attach="background" args={[0x0b0710]} />
-      <CameraRig />
+      <CameraRig session={session} />
       <Lighting />
       <HandInputProvider>
         <Lamp session={session} />
@@ -62,12 +64,10 @@ export function App() {
           </>
         )}
       </AdaptiveQuality>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[6, 64]} />
-        <meshStandardMaterial color={0x140c1e} roughness={0.9} />
-      </mesh>
+      <Floor />
     </Canvas>
     <MagicUnavailableNote session={session} />
+    <Hint session={session} />
     <Credits />
     </>
   );

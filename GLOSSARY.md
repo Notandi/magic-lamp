@@ -1,6 +1,6 @@
 # Magic Lamp
 
-An interactive 3D toy: the player rubs a genie lamp with a hand that follows their mouse, smoke builds up, and Magic: The Gathering cards emerge.
+An interactive 3D toy: the player rubs a genie lamp with a hand that follows their mouse, smoke builds up, and a genie pours out to offer them Magic: The Gathering cards.
 
 ## Language
 
@@ -29,8 +29,12 @@ The magical vapour that rises from the Lamp's spout, growing as Charge grows.
 _Avoid_: Mist, fog, particles
 
 **Wish**:
-The Lamp releasing a set of Cards when Charge is full; each Wish replaces the previous Wish's Cards.
+The Lamp releasing a set of Cards when Charge is full: the Genie pours out and offers them. Each Wish replaces the previous Wish's Cards.
 _Avoid_: Pull, summon, drop, pack
+
+**Genie**:
+The spirit that pours out of the Lamp's spout when a Wish starts and offers the Wish's Cards with open arms. It hovers over the Lamp while the Cards are out and is drawn back in when they are cleared.
+_Avoid_: Djinn, spirit, ghost
 
 **Card**:
 A real Magic: The Gathering card drawn at random from the game's whole history, shown as a thin 3D object with its face on the front and either the official card back or, for a double-faced card, its second face on the back. Tokens, art cards and emblems are not Cards.

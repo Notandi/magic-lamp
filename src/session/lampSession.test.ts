@@ -519,3 +519,45 @@ describe('Lamp session: what the Cards respond to', () => {
     expect(session.canFlipCard(3)).toBe(false);
   });
 });
+
+describe('Lamp session: the Genie', () => {
+  it('is in the Lamp until a Wish starts, even while Charge builds', () => {
+    const session = createLampSession();
+    expect(session.isGenieOut()).toBe(false);
+    pressOnLamp(session);
+    rub(session, 6);
+    expect(session.state.charge).toBeGreaterThan(0);
+    expect(session.isGenieOut()).toBe(false);
+  });
+
+  it('comes out the moment a Wish starts, before its Cards are ready', () => {
+    const { source } = fakeCardSource();
+    const session = createLampSession({ cardSource: source });
+    rubUntilWish(session);
+    expect(session.state.cards).toBeNull();
+    expect(session.isGenieOut()).toBe(true);
+  });
+
+  it('stays out while the Cards are on show or Inspected', async () => {
+    const session = createLampSession();
+    rubUntilWish(session);
+    await flush();
+    session.cardsSettled();
+    expect(session.isGenieOut()).toBe(true);
+    session.cardClicked(1);
+    expect(session.isGenieOut()).toBe(true);
+  });
+
+  it('goes back into the Lamp when the next Rub stroke clears the Cards', async () => {
+    const session = createLampSession();
+    rubUntilWish(session);
+    await flush();
+    session.cardsSettled();
+    session.pointerUp();
+
+    pressOnLamp(session);
+    rub(session, 2);
+    expect(session.state.cards).toBeNull();
+    expect(session.isGenieOut()).toBe(false);
+  });
+});
