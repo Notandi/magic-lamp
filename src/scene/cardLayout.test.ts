@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_SIZE, fanArc } from './cardLayout';
-import { CAMERA_TARGET } from './camera';
+import { LAMP_TOP } from './lampGeometry';
 
 describe('Card fan arc', () => {
   const slots = fanArc(5);
@@ -13,7 +13,7 @@ describe('Card fan arc', () => {
   });
 
   it('floats in the upper half of the view, clear above the Lamp', () => {
-    for (const s of slots) expect(s.position[1] - CARD_SIZE.height / 2).toBeGreaterThan(CAMERA_TARGET[1] + 0.6);
+    for (const s of slots) expect(s.position[1] - CARD_SIZE.height / 2).toBeGreaterThan(LAMP_TOP);
   });
 
   it('fans outward: the middle Card is highest and upright, the outer ones lower and tilted outwards', () => {

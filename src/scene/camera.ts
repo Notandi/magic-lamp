@@ -1,9 +1,9 @@
 export type Vec3 = [number, number, number];
 
-/** Fixed three-quarter view of the Lamp, from the approved prototype. */
-export const CAMERA_HOME: Vec3 = [1.5, 2.6, 6.5];
+/** Fixed three-quarter view, framing the Lamp below and the Card arc above it. */
+export const CAMERA_HOME: Vec3 = [1.5, 3.0, 7.4];
 /** Point the camera always looks at. */
-export const CAMERA_TARGET: Vec3 = [0.3, 0.9, 0];
+export const CAMERA_TARGET: Vec3 = [0.3, 1.7, 0];
 /** How far (world units) the camera drifts at the window edge. */
 export const CAMERA_DRIFT = { x: 0.4, y: 0.25 };
 
