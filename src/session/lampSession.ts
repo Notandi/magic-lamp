@@ -93,6 +93,8 @@ export interface LampSession {
   readonly state: LampState;
   /** Whether a Wish is under way: Charge has filled and its Cards haven't settled yet. */
   isWishing(): boolean;
+  /** Whether the Genie is out of the Lamp: from the moment a Wish starts until its Cards are cleared. */
+  isGenieOut(): boolean;
   /** Whether settled Cards respond to the Hand hovering over them: they're on show and none is Inspected. */
   canHoverCards(): boolean;
   /** Whether the Card at `index` can be dragged to flip it: any settled Card on show, or the Inspected Card. */
@@ -265,6 +267,7 @@ export function createLampSession({
       };
     },
     isWishing: () => wishing,
+    isGenieOut: () => wishing || cards !== null,
     canHoverCards: () => !wishing && cards !== null && inspectedCard === null,
     canFlipCard: (index) => !wishing && cards !== null && (inspectedCard === null || inspectedCard === index),
     isInspected: (index) => inspectedCard === index,

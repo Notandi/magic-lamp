@@ -108,6 +108,8 @@ export function Smoke({ session, origin, budget = DEFAULT_SMOKE_BUDGET, mode = '
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.frustumCulled = false;
     m.count = 0;
+    // Drawn after the Genie, so Smoke in front of it isn't painted over.
+    m.renderOrder = 2;
     return m;
   }, [budget]);
 

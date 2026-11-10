@@ -6,6 +6,7 @@ import type { LampSession, WishCards } from '../session/lampSession';
 import cardBackUrl from '../assets/cards/card-back.jpg';
 import { clamp01 } from '../math';
 import { CARD_SIZE, fanArc, type FanSlot } from './cardLayout';
+import { genieIsReady, type GenieStage } from './genieMotion';
 import type { SmokeDissolve } from './Smoke';
 import { useCardPlay } from './useCardPlay';
 
@@ -14,14 +15,14 @@ export const CARDS_OBJECT_NAME = 'cards';
 
 /** Timing of the Cards' animations, in seconds. */
 export const CARD_ANIMATION = {
-  /** How long each Card takes to rise from the Smoke column to its place in the arc. */
-  riseSeconds: 1.6,
+  /** How long each Card takes to fly from the Genie's hands to its place in the arc. */
+  riseSeconds: 1.4,
   /** Delay between one Card starting to rise and the next. */
   riseStagger: 0.18,
   /** Full turns a Card spins about its vertical axis while rising. */
   riseSpins: 1.5,
-  /** Height above the spout where Cards appear in the column. */
-  columnHeight: 0.6,
+  /** Self-lighting on a Card's faces in the arc, so its art shows in the dim room. */
+  restingGlow: 0.12,
   /** How long dissolving Cards take to vanish into Smoke. */
   dissolveSeconds: 0.7,
   /** Smoke puffs released per dissolving Card per frame. */
@@ -54,19 +55,22 @@ function facesOf(cards: WishCards): CardFaces[] {
 const ease = (k: number) => 1 - Math.pow(1 - k, 3);
 
 /**
- * A Wish's Cards. They rise out of the Smoke column one after another, spinning, and settle
- * into a fan-shaped arc above the Lamp; then they report Cards-settled to the Lamp session.
+ * A Wish's Cards. Once the Genie is out, they fly from its hands one after another, spinning,
+ * and settle into a fan-shaped arc above the Lamp; then they report Cards-settled to the Lamp session.
  * When the session clears them, they dissolve into Smoke. Each Wish replaces the last.
  * Once settled, the player can hover, flip and Inspect them (see useCardPlay).
  */
 export function Cards({
   session,
   origin,
+  genie,
   dissolve,
 }: {
   session: LampSession;
-  /** World position of the spout tip the Smoke column rises from. */
+  /** World position the Cards fly out from: between the Genie's hands. */
   origin: THREE.Vector3Tuple;
+  /** The Genie offering the Cards; they wait until it is out of the Lamp. */
+  genie: GenieStage;
   dissolve: SmokeDissolve;
 }) {
   const [shown, setShown] = useState<ShownWish | null>(null);
@@ -81,7 +85,11 @@ export function Cards({
     animation.t += dt;
 
     if (cards && wishId !== shownId.current) {
-      // A new Wish's Cards: they replace whatever was on show.
+      // A new Wish's Cards: they replace whatever was on show, once the Genie is out to offer them.
+      if (!genieIsReady(genie)) {
+        if (shown) setShown(null);
+        return;
+      }
       shownId.current = wishId;
       clock.current = { stage: 'rising', t: 0 };
       setShown({ id: wishId, faces: facesOf(cards) });
@@ -183,7 +191,7 @@ function CardSlab({
         emissiveMap: map,
         emissive: 0xffffff,
         emissiveIntensity: 0,
-        roughness: 0.45,
+        roughness: 0.7,
         metalness: 0,
         transparent: true,
       });
@@ -200,7 +208,7 @@ function CardSlab({
 
   const play = useCardPlay({ session, index, card: group });
 
-  const start = useMemo(() => new THREE.Vector3(origin[0], origin[1] + CARD_ANIMATION.columnHeight, origin[2]), [origin]);
+  const start = useMemo(() => new THREE.Vector3(...origin), [origin]);
   const end = useMemo(() => new THREE.Vector3(...slot.position), [slot]);
 
   useFrame(({ camera }, delta) => {
@@ -216,8 +224,8 @@ function CardSlab({
 
     const eased = ease(rise);
     cardGroup.position.lerpVectors(start, end, eased);
-    // Rise in a slight arc: up the column first, then out to the slot.
-    cardGroup.position.y += Math.sin(Math.PI * eased) * 0.35;
+    // Fly in a slight arc: up out of the Genie's hands first, then out to the slot.
+    cardGroup.position.y += Math.sin(Math.PI * eased) * 0.3;
     cardGroup.lookAt(camera.position);
     cardGroup.rotateZ(slot.tilt * eased);
     cardGroup.rotateY((1 - eased) * Math.PI * 2 * CARD_ANIMATION.riseSpins);
@@ -225,8 +233,7 @@ function CardSlab({
     cardGroup.scale.setScalar(scale);
     cardGroup.visible = rise > 0 && fade > 0;
     const glow = play.pose(camera, Math.min(delta, 0.1), animation.stage === 'settled');
-    materials.front.emissiveIntensity = glow;
-    materials.back.emissiveIntensity = glow;
+    materials.front.emissiveIntensity = materials.back.emissiveIntensity = Math.max(glow, CARD_ANIMATION.restingGlow * eased);
 
     for (const m of [materials.front, materials.back, materials.edge]) m.opacity = fade * Math.min(1, rise * 4);
 

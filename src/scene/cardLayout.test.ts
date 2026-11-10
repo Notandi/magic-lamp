@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_SIZE, fanArc } from './cardLayout';
-import { LAMP_TOP } from './lampGeometry';
+import { GENIE_TORSO } from './genieGeometry';
+import { LAMP_POSITION } from './Lamp';
+import { LAMP_TOP, SPOUT_TIP } from './lampGeometry';
 
 describe('Card fan arc', () => {
   const slots = fanArc(5);
@@ -14,6 +16,11 @@ describe('Card fan arc', () => {
 
   it('floats in the upper half of the view, clear above the Lamp', () => {
     for (const s of slots) expect(s.position[1] - CARD_SIZE.height / 2).toBeGreaterThan(LAMP_TOP);
+  });
+
+  it('hangs in front of the Genie, centred on its torso', () => {
+    expect(slots[2].position[0]).toBeCloseTo(SPOUT_TIP.x + LAMP_POSITION.x + GENIE_TORSO.x, 1);
+    expect(slots[2].position[2]).toBeGreaterThan(GENIE_TORSO.z + 0.5);
   });
 
   it('fans outward: the middle Card is highest and upright, the outer ones lower and tilted outwards', () => {
